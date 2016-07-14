@@ -100,10 +100,16 @@ class Interaction:
         self.rel_total_ig_ab = self.abs_total_ig_ab/class_ent
 
     def __str__(self):
-        return "Write this method so it will print multiple lines."
+        #TODO: Should this print abolute info gains too? They are not really informative.
+        msg = "Object representing interaction beetween attributes " + str(self.a_name) + " and " + str(self.b_name) + ".\n"
+        msg += "Relative info gain for attribute " + str(self.a_name) + ": " + str(self.rel_ig_a) + "\n"
+        msg += "Relative info gain for attribute " + str(self.b_name) + ": " + str(self.rel_ig_b) + "\n"
+        msg += "Relative info gain for both attributes together: " + str(self.rel_ig_ab) + "\n"
+        msg += "Total relative info gain from attributes and their combination: " + str(self.rel_total_ig_ab)
+        return msg
 
     def __repr__(self):
-        return "Write this method so it will print multiple lines."
+        return "Do I need to overwrite this too?"
 
 
 class Interactions:
@@ -151,7 +157,7 @@ def load_mushrooms_data(no_samples=False):
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
     data = Table(X_shrooms, Y_shrooms)  # Make and Orange.Table object, without domain added
-    # it thinks attributes are countinous but for this test it doesn't really matter
+    # it thinks attributes are countinous but for this test it doesn't really matter, to fix this add domain
     return data
 
 def test_H(data):
@@ -183,51 +189,50 @@ def test_I(data):
 def test_Interactions(data):
     #Test interactions class
     inter = Interactions(data)
+    print("-------------------------------------------------------------------------")
     print("All absolute information gains of individual attributes:")
+    print("-------------------------------------------------------------------------")
     for key in inter.info_gains:
         print(key, "abs info gain:", inter.info_gains[key])
-    print("****************************************************************************")
-    print("All absolute information gains of individual attributes:")
+    print("-------------------------------------------------------------------------")
+    print("All relative information gains of individual attributes:")
+    print("-------------------------------------------------------------------------")
     for key in inter.info_gains:
         print(key, "rel info gain:", inter.info_gains[key]/inter.class_entropy)
-    print("****************************************************************************")
     #Print out info gain for all of the pairs of attributes
     charts = []
     for a in range(len(data.domain.attributes)):
         for b in range(a+1, len(data.domain.attributes)):
             chart_info = inter.attribute_interactions(a, b)
             charts.append(chart_info)
-            # print("Relative info gain for attribute", data.domain.attributes[a], ":", chart_info.rel_ig_a)
-            # print("Relative info gain for attribute", data.domain.attributes[b], ":", chart_info.rel_ig_b)
-            # print("Relative info gain for attributes", data.domain.attributes[a], "and",
-            #       data.domain.attributes[b], "together", ":", chart_info.rel_ig_ab)
-            # print("Total relative info gain for attributes", data.domain.attributes[a], "and",
-            #       data.domain.attributes[b], ":", chart_info.rel_total_ig_ab)
     charts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
-    print("Attributes with highest total relative info gain:")
-    for i in range(10):
+    top = 5
+    print("-------------------------------------------------------------------------")
+    print("Top", top, "attribute combinations with highest total relative info gain:")
+    print("-------------------------------------------------------------------------")
+    for i in range(top):
         chart_info = charts[i]
-        print("Relative info gain for attribute", chart_info.a_name, ":", chart_info.rel_ig_a)
-        print("Relative info gain for attribute", chart_info.b_name, ":", chart_info.rel_ig_b)
-        print("Relative info gain for attributes", chart_info.a_name, "and",
-              chart_info.b_name, "together", ":", chart_info.rel_ig_ab)
-        print("Total relative info gain for attributes", chart_info.a_name, "and",
-              chart_info.b_name, ":", chart_info.rel_total_ig_ab)
+        print(chart_info)
         print("****************************************************************************")
     charts.sort(key=lambda x: x.rel_ig_ab)
-    print("Attributes with lowest relative info gain:")
-    for i in range(10):
+    print("-------------------------------------------------------------------------")
+    print("Top", top, "attribute combinations with lowest relative info gain:")
+    print("-------------------------------------------------------------------------")
+    for i in range(top):
         chart_info = charts[i]
-        print("Relative info gain for attribute", chart_info.a_name, ":", chart_info.rel_ig_a)
-        print("Relative info gain for attribute", chart_info.b_name, ":", chart_info.rel_ig_b)
-        print("Relative info gain for attributes", chart_info.a_name, "and",
-              chart_info.b_name, "together", ":", chart_info.rel_ig_ab)
-        print("Total relative info gain for attributes", chart_info.a_name, "and",
-              chart_info.b_name, ":", chart_info.rel_total_ig_ab)
+        print(chart_info)
+        print("****************************************************************************")
+    charts.sort(key=lambda x: x.rel_ig_ab, reverse=True)
+    print("-------------------------------------------------------------------------")
+    print("Top", top, "attribute combinations with highest relative info gain:")
+    print("-------------------------------------------------------------------------")
+    for i in range(top):
+        chart_info = charts[i]
+        print(chart_info)
         print("****************************************************************************")
 
 if __name__ == '__main__':
-    # TODO: check correctnes of H and I, something is off
+    # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
     data = load_mushrooms_data() # Load bigger discrete dataset
     # data = load_xor_data()
