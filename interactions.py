@@ -51,8 +51,8 @@ def H_slow(*rand_vars, return_prob_dist=False):
     n = len(R) #number of instances in R
     keys, counts = np.unique(R, return_counts=True) #count occurances of unique values
     k = len(keys) #number of unique values in R
-    # probs_laplace = [(c+1)/(n + k) for c in counts] #probabilities with additive smoothing (alpha=1)
-    probs_laplace = [c/n for c in counts]  # probabilities with additive smoothing (alpha=1)
+    probs_laplace = [(c+1)/(n + k) for c in counts] #probabilities with additive smoothing (alpha=1)
+    # probs_laplace = [c/n for c in counts]  # probabilities with additive smoothing (alpha=1)
     prob_dist = dict(zip(keys, probs_laplace)) #present probability distribution in the format of a dictionary
     entropy = -sum(probs_laplace*np.log2(probs_laplace)) #calculate entropy
     # print("Unique values:", keys)
@@ -231,6 +231,45 @@ def test_Interactions(data):
         print(chart_info)
         print("****************************************************************************")
 
+#This is the fixed entropy function.
+#Probabilities are now correctly calculated and additive smoothing was added. It is still super fast. :)
+# def true_ent(*X):
+#     n = len(X[0])
+#     H = 0
+#     uniques = [set(x) for x in X]
+#     ds = [len(x) for x in uniques] #needed for additive smoothing
+#     # print(ks)
+#     for classes in itertools.product(*uniques):
+#         p = np.prod([(np.sum(predictions == c)+1)/(n+d) for predictions, c, d in zip(X, classes, ds)])
+#         #Results will differ because of the mistake genereted when multiplying probabilities (a lot of floats)
+#         H += -p * np.log2(p) if p > 0 else 0
+#    return H
+
+# def H(*X):
+#     n = len(X[0])
+#     uniques = [set(x) for x in X]
+#     ds = [len(x) for x in uniques]  # needed for additive smoothing
+#     return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
+#                   (np.prod([(np.sum(predictions == c)+1)/(n+d) for predictions, c, d in zip(X, classes, ds)])
+#                    for classes in itertools.product(*uniques)))
+
+def entropy_(*X):
+    n = len(X[0])
+    # print(n_insctances)
+    H = 0
+    # print([set(x) for x in X])
+    for classes in itertools.product(*[set(x) for x in X]):
+        # print(classes)
+        # print(v)
+        # for predictions, c in zip(X, classes):
+        #     print(predictions, c)
+        v = reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes)))
+        # for predictions, c in zip(X, classes):
+        #     v = np.logical_and(v, predictions == c)
+        p = np.mean(v)
+        H += -p * np.log2(p) if p > 0 else 0
+    return H
+
 if __name__ == '__main__':
     # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
@@ -241,16 +280,39 @@ if __name__ == '__main__':
     # test_H(data)
     # test_I(data)
     test_Interactions(data)
+
+    # np.random.seed(41)
     # a = np.random.randint(5, size=100)
     # b = np.random.randint(5, size=100)
     # c = np.random.randint(5, size=100)
-    # c = cartesian((a,b))
-    # c_ = c.astype(str)
-    # wrapped = wrapper(H, a, b, c)
-    # print("H time:", timeit.timeit(wrapped, number=10))
-    # wrapped = wrapper(entropy, a, b, c)
-    # print("entropy time:", timeit.timeit(wrapped, number=10))
-    # print(H(a, b, c))
+    # a_ = np.random.randint(10, size=100)
+    # b_ = np.random.randint(10, size=100)
+    # c = np.random.randint(10, size=100)
+
+    # ent_0, prob_0 = true_ent(a, b)
+    # ent_1, prob = H_slow(a, b, return_prob_dist=True)
+    # prob_1 = []
+    # for key in prob:
+    #     prob_1.append(prob[key])
+    # print(ent_0, ent_1)
+    # prob_0.sort()
+    # prob_1.sort()
+    # for i in range(len(prob_0)):
+    #     print(prob_0[i], prob_1[i])
+
+    # wrapped = wrapper(entropy_, a_, b_)
+    # print("entropy_ time:", timeit.timeit(wrapped, number=10))
+    # ent = entropy_(a, b, c)
+    # print(ent)
+    # wrapped = wrapper(true_ent, a_, b_)
+    # print("true_ent time:", timeit.timeit(wrapped, number=10))
+    # ent0 = true_ent(a, b, c)
+    # print(ent0)
+    # wrapped = wrapper(H_slow, a, b)
+    # print("H_slow time:", timeit.timeit(wrapped, number=10))
+    # ent2 = H_slow(a, b, c)
+    # print(ent2)
+    # print("entropy_ time:", timeit.timeit(wrapped, number=10))
 
 
 
