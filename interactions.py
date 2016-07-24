@@ -9,10 +9,9 @@ def wrapper(func, *args, **kwargs):
     return wrapped
 
 #This version of entropy seems to work the fastest!
-#TODO: It expects varibles to be nonegative integers, check if this is indeed the default in Orange data tables
 def H(*X):
     n = len(X[0])
-    counts = [np.bincount(x) for x in X] #count occurances
+    counts = [np.unique(x, return_counts=True)[1] for x in X] #count occurances, works for floats too
     probs = [(cnt + 1)/(n + len(cnt))for cnt in counts] #apply additive smoothing
     H = 0
     for ps in cartesian(probs): #cartesian seems to work faster than itertools.product
@@ -192,9 +191,9 @@ if __name__ == '__main__':
     # data = Table("lenses")  # Load discrete dataset
     data = load_mushrooms_data() # Load bigger discrete dataset
     # data = load_xor_data()
-    # test_H(data)
-    # test_I(data)
-    test_Interactions(data)
+    test_H(data)
+    test_I(data)
+    # test_Interactions(data)
 
     #GENERATE SOME RANDOM DATA
     # np.random.seed(42)
@@ -237,13 +236,13 @@ if __name__ == '__main__':
     # print("h_3 (correct one) time:", timeit.timeit(wrapped, number=10))
     # ent = h_3(a, b, c)
     # print(ent)
-    # wrapped = wrapper(h_4, a_, b_)
-    # print("h_4 time:", timeit.timeit(wrapped, number=10))
-    # ent = h_4(a, b, c)
+    # wrapped = wrapper(H, a_, b_, c_)
+    # print("H time:", timeit.timeit(wrapped, number=10))
+    # ent = H(a, b, c)
     # print(ent)
-    # wrapped = wrapper(h_5, a_, b_)
-    # print("h_5 time:", timeit.timeit(wrapped, number=10))
-    # ent = h_5(a, b, c)
+    # wrapped = wrapper(H_, a_, b_, c_)
+    # print("H_ time:", timeit.timeit(wrapped, number=10))
+    # ent = H_(a, b, c)
     # print(ent)
 
 
