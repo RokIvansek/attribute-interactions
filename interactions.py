@@ -2,109 +2,15 @@ import numpy as np
 from Orange.data import Table
 from sklearn.utils.extmath import cartesian
 import timeit
-import itertools
-from functools import reduce
 
 def wrapper(func, *args, **kwargs):
     def wrapped():
         return func(*args, **kwargs)
     return wrapped
 
-# This is the fixed entropy function.
-# Probabilities are now correctly calculated and additive smoothing was added. It is still super fast. :)
-def h_0(*X):
-    n = len(X[0])
-    H = 0
-    uniques = [set(x) for x in X]
-    ds = [len(x) for x in uniques] #needed for additive smoothing
-    # print(ks)
-    for classes in itertools.product(*uniques):
-        p = np.prod([(np.sum(predictions == c)+1)/(n+d) for predictions, c, d in zip(X, classes, ds)])
-        #Results will differ because of the mistake generated when multiplying probabilities (a lot of floats)
-        H += -p * np.log2(p) if p > 0 else 0
-    return H
-
-def h_1(*X):
-    n = len(X[0])
-    uniques = [set(x) for x in X]
-    ds = [len(x) for x in uniques]  # needed for additive smoothing
-    return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
-                  (np.prod([(np.sum(predictions == c)+1)/(n+d) for predictions, c, d in zip(X, classes, ds)])
-                   for classes in itertools.product(*uniques)))
-
-def h_2(*X):
-    n = len(X[0])
-    # print(n_insctances)
-    H = 0
-    # print([set(x) for x in X])
-    for classes in itertools.product(*[set(x) for x in X]):
-        # print(classes)
-        # print(v)
-        # for predictions, c in zip(X, classes):
-        #     print(predictions, c)
-        v = reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes)))
-        # for predictions, c in zip(X, classes):
-        #     v = np.logical_and(v, predictions == c)
-        p = np.mean(v)
-        H += -p * np.log2(p) if p > 0 else 0
-    return H
-
-#Stole this from http://blog.biolab.si/2012/06/15/computing-joint-entropy-in-python/
-#It performs great.
-#TODO: Make sure the probabilities use additive smoothing (alpha = 1) t.i. Laplace probabilities
-def H(*X):
-    return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
-        (np.mean(reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes))))
-            for classes in itertools.product(*[set(x) for x in X])))
-
-def h_3(*rand_vars, return_prob_dist=False):
-    """
-    :param rand_vars: discrete random variables as a tuple of 1-D arrays
-
-    :return: entropy
-    If one random variable X is given, entropy H(X) is calcuated.
-    If two random variables X and Y are given, joint entropy H(XY) is calcuated.
-    If three random variables X, Y and Z are given, joint entropy H(XYZ) is calculated.
-    """
-
-    #TODO: find out if categorical variables in orange data tables are always labeled with non negative integers
-    v = len(rand_vars)
-    if v == 1:
-        #R = ["{}".format(i) for i in rand_vars[0]]
-        R = rand_vars[0].astype(str) #turning this to strings looks like a bad idea
-    elif v == 2:
-        X, Y = rand_vars
-        cart = cartesian((X,Y)).astype(str)
-        #R = ["{}_{}".format(i, j) for i, j in cartesian((X, Y))] #reformat the cartesian product array
-        R = list(map(lambda row: row[0] + row[1], cart))
-        #into a list of strings so that np.unique will work on it
-    elif v == 3:
-        X, Y, Z = rand_vars
-        cart = cartesian((X, Y, Z)).astype(str)
-        #R = ["{}_{}_{}".format(i, j, k) for i, j, k in cartesian((X, Y, Z))]
-        R = list(map(lambda row: row[0] + row[1] + row[2], cart))
-    else:
-        # TODO: How to properly raise errors/exceptions?
-        print("Provide at least 1 and up to 3 random variables.")
-        return
-    n = len(R) #number of instances in R
-    keys, counts = np.unique(R, return_counts=True) #count occurances of unique values
-    k = len(keys) #number of unique values in R
-    probs_laplace = [(c+1)/(n + k) for c in counts] #probabilities with additive smoothing (alpha=1)
-    # probs_laplace = [c/n for c in counts]  # probabilities with additive smoothing (alpha=1)
-    prob_dist = dict(zip(keys, probs_laplace)) #present probability distribution in the format of a dictionary
-    entropy = -sum(probs_laplace*np.log2(probs_laplace)) #calculate entropy
-    # print("Unique values:", keys)
-    # print("Frequencies:", counts)
-    # print("Probabilty distribution with additive smoothing:", prob_dist)
-    # print("Calculated entroby:", entropy)
-    if return_prob_dist:
-        return entropy, prob_dist
-    else:
-        return entropy
-
 #This version of entropy seems to work the fastest!
-def h_4(*X):
+#TODO: It expects varibles to be nonegative integers, check if this is indeed the default in Orange data tables
+def H(*X):
     n = len(X[0])
     counts = [np.bincount(x) for x in X] #count occurances
     probs = [(cnt + 1)/(n + len(cnt))for cnt in counts] #apply additive smoothing
@@ -113,18 +19,6 @@ def h_4(*X):
         joint_prob = np.prod(ps)
         H += -joint_prob*np.log2(joint_prob)
     return H
-
-def h_5(*X):
-    n = len(X[0])
-    counts = [np.bincount(x) for x in X] #count occurances
-    probs = [(cnt + 1)/(n + len(cnt))for cnt in counts] #apply additive smoothing
-    H = 0
-    # for ps in cartesian(probs): #Not sure whether to use cartesian or itertool.product here
-    for ps in itertools.product(*probs):
-        joint_prob = np.prod(ps)
-        H += -joint_prob*np.log2(joint_prob)
-    return H
-
 
 def I(*rand_vars):
     v = len(rand_vars)
@@ -300,15 +194,16 @@ if __name__ == '__main__':
     # data = load_xor_data()
     # test_H(data)
     # test_I(data)
-    # test_Interactions(data)
+    test_Interactions(data)
 
-    np.random.seed(42)
-    a = np.random.randint(50, size=10000)
-    b = np.random.randint(50, size=10000)
-    c = np.random.randint(50, size=10000)
-    a_ = np.random.randint(50, size=10000)
-    b_ = np.random.randint(50, size=10000)
-    c_ = np.random.randint(50, size=10000)
+    #GENERATE SOME RANDOM DATA
+    # np.random.seed(42)
+    # a = np.random.randint(50, size=10000)
+    # b = np.random.randint(50, size=10000)
+    # c = np.random.randint(50, size=10000)
+    # a_ = np.random.randint(50, size=10000)
+    # b_ = np.random.randint(50, size=10000)
+    # c_ = np.random.randint(50, size=10000)
 
     # ent_0, prob_0 = true_ent(a, b)
     # ent_1, prob = H_slow(a, b, return_prob_dist=True)
@@ -321,8 +216,9 @@ if __name__ == '__main__':
     # for i in range(len(prob_0)):
     #     print(prob_0[i], prob_1[i])
 
-    wrapped = wrapper(H, a_, b_)
-    print("H (fast one) time:", timeit.timeit(wrapped, number=10))
+    #SPEED TESTING:
+    # wrapped = wrapper(H, a_, b_)
+    # print("H (fast one) time:", timeit.timeit(wrapped, number=10))
     # ent = H(a, b, c)
     # print(ent)
     # wrapped = wrapper(h_0, a_, b_)
@@ -341,12 +237,12 @@ if __name__ == '__main__':
     # print("h_3 (correct one) time:", timeit.timeit(wrapped, number=10))
     # ent = h_3(a, b, c)
     # print(ent)
-    wrapped = wrapper(h_4, a_, b_)
-    print("h_4 time:", timeit.timeit(wrapped, number=10))
+    # wrapped = wrapper(h_4, a_, b_)
+    # print("h_4 time:", timeit.timeit(wrapped, number=10))
     # ent = h_4(a, b, c)
     # print(ent)
-    wrapped = wrapper(h_5, a_, b_)
-    print("h_5 time:", timeit.timeit(wrapped, number=10))
+    # wrapped = wrapper(h_5, a_, b_)
+    # print("h_5 time:", timeit.timeit(wrapped, number=10))
     # ent = h_5(a, b, c)
     # print(ent)
 
