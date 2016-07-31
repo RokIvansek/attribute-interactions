@@ -47,17 +47,29 @@ class Interactions:
         self.data = data
         self.n = len(self.data.domain.attributes)  # TODO: What is a better way to get this two numbers m and n
         self.m = len(self.data.X[:, 0])
-        #TODO: Check for sparse data
-        #TODO: Discretize continous attributes
-        self.info_gains = self.get_information_gains() #calculate info gain for all atrributes
+        # TODO: Check for sparse data
+        # TODO: Discretize continous attributes
+        self.info_gains = self.get_information_gains()  # calculate info gain for all atrributes
         self.class_entropy = self.H(self.data.Y) #you will need this for relative information gain
 
+    # def H(self, *X):
+    #     uniques = [np.unique(x) for x in X]
+    #     k = np.prod([len(x) for x in uniques])
+    #     return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
+    #         ((np.sum(reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes)))) + 1) / (self.m + k)
+    #             for classes in cartesian(uniques)))
+
     def H(self, *X):
-        uniques = [np.unique(x) for x in X]
-        k = np.prod([len(x) for x in uniques])
-        return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
-            ((np.sum(reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes)))) + 1) / (self.m + k)
-                for classes in cartesian(uniques)))
+        uniques = [np.unique(x) for x in X] # get unique values for each attribute column
+        k = np.prod([len(x) for x in uniques]) # get the number of values in the cartesian product
+        att_arr = np.column_stack(X) # stack columns in a matrix
+        conti_arr = np.ascontiguousarray(att_arr).view(np.dtype((np.void, att_arr.dtype.itemsize * att_arr.shape[1])))
+        _, counts = np.unique(conti_arr, return_counts=True) # count the ocurances of joined attribute values
+        ps = (counts + 1) / (self.m + k) # get probabilities (additive smoothing)
+        entropy = np.sum(-p*np.log2(p) for p in ps)
+        zero_p = 1/(self.m + k) # the values that do not appear have a non zero probability (additive smoothing)
+        extra_ent = (k-len(counts))*(-zero_p*np.log2(zero_p))
+        return entropy+extra_ent
 
     def I(self, *X):
         return np.sum([((-1) ** (len(subset) - 1)) * self.H(*subset) for subset in powerset(X)])
@@ -94,6 +106,12 @@ class Interactions:
 def load_xor_data():
     X = np.array([[0,0], [0,1], [1,0], [1,1]])
     Y = np.array([0,1,1,0])
+    data = Table(X, Y)
+    return data
+
+def load_artificial_data(no_att, no_samples, no_unique_values, no_classes):
+    X = np.array([np.random.randint(no_unique_values, size=no_samples) for i in range(no_att)]).T
+    Y = np.random.randint(no_classes, size=no_samples)
     data = Table(X, Y)
     return data
 
@@ -182,29 +200,43 @@ def test_attribute_interactions(data):
 def test_interaction_matrix(data):
     inter = Interactions(data)
     interaction_M = inter.interaction_matrix()
-    print(interaction_M)
+    print(interaction_M.shape)
 
 if __name__ == '__main__':
     # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
-    data = load_mushrooms_data() # Load bigger discrete dataset
+    # data = load_mushrooms_data() # Load bigger discrete dataset
+    data = load_artificial_data(1000, 10000, 10, 2) # Load artificial data
+    # inter = Interactions(data)
     # data = load_xor_data()
-    test_H(data)
-    test_I(data)
+    # test_H(data)
+    # test_I(data)
     # test_attribute_interactions(data)
-    test_interaction_matrix(data)
+    # test_interaction_matrix(data)
 
     #GENERATE SOME RANDOM DATA
     # np.random.seed(42)
-    # a = np.random.randint(50, size=1000)
-    # b = np.random.randint(50, size=1000)
-    # c = np.random.randint(50, size=1000)
+    # a = np.random.randint(50, size=10000)
+    # b = np.random.randint(50, size=10000)
+    # c = np.random.randint(20, size=10000)
+
+    #CORRECTNES TESTING
+    # print(inter.fast_H(data.X[:,5], data.X[:,11], data.Y))
+    # print(inter.H(data.X[:,5], data.X[:,11], data.Y))
 
     #SPEED TESTING:
-    # wrapped = wrapper(H, a, b)
+    # wrapped = wrapper(inter.H, a, b)
     # print("H time:", timeit.timeit(wrapped, number=10))
-    # ent = H(a, b)
+    # ent = inter.H(a, b)
     # print(ent)
+    #
+    # wrapped = wrapper(inter.fast_H, a, b)
+    # print("fast_H time:", timeit.timeit(wrapped, number=10))
+    # ent = inter.fast_H(a, b)
+    # print(ent)
+
+    wrapped = wrapper(test_interaction_matrix, data)
+    print("Time:", timeit.timeit(wrapped, number=3))
 
 
 
