@@ -52,24 +52,22 @@ class Interactions:
         self.info_gains = self.get_information_gains()  # calculate info gain for all atrributes
         self.class_entropy = self.H(self.data.Y) #you will need this for relative information gain
 
-    # def H(self, *X):
-    #     uniques = [np.unique(x) for x in X]
-    #     k = np.prod([len(x) for x in uniques])
-    #     return np.sum(-p * np.log2(p) if p > 0 else 0 for p in
-    #         ((np.sum(reduce(np.logical_and, (predictions == c for predictions, c in zip(X, classes)))) + 1) / (self.m + k)
-    #             for classes in cartesian(uniques)))
-
     def H(self, *X):
-        uniques = [np.unique(x) for x in X] # get unique values for each attribute column
-        k = np.prod([len(x) for x in uniques]) # get the number of values in the cartesian product
-        att_arr = np.column_stack(X) # stack columns in a matrix
-        conti_arr = np.ascontiguousarray(att_arr).view(np.dtype((np.void, att_arr.dtype.itemsize * att_arr.shape[1])))
-        _, counts = np.unique(conti_arr, return_counts=True) # count the ocurances of joined attribute values
-        ps = (counts + 1) / (self.m + k) # get probabilities (additive smoothing)
-        entropy = np.sum(-p*np.log2(p) for p in ps)
-        zero_p = 1/(self.m + k) # the values that do not appear have a non zero probability (additive smoothing)
-        extra_ent = (k-len(counts))*(-zero_p*np.log2(zero_p))
-        return entropy+extra_ent
+        no_att = len(X)
+        if no_att == 1:
+            uniques, counts = np.unique(X[0], return_counts=True)
+            probs = (counts + 1) / (self.m + len(uniques))
+            return np.sum(-p*np.log2(p) for p in probs)
+        else:
+            uniques = [np.unique(x) for x in X] # get unique values for each attribute column
+            k = np.prod([len(x) for x in uniques]) # get the number of values in the cartesian product
+            M = np.column_stack(X) # stack columns in a matrix
+            M = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att))) # represent as contiguousarray
+            # M = M.view(M.dtype.descr * no_att)  # using structured arrays is memory efficient, but a little slower
+            _, counts = np.unique(M, return_counts=True) # count the ocurances of joined attribute values
+            probs = (counts + 1) / (self.m + k) # get probabilities (additive smoothing)
+            zero_p = 1/(self.m + k) # the values that do not appear have a non zero probability (additive smoothing)
+            return np.sum(-p*np.log2(p) for p in probs) + (k-len(counts))*(-zero_p*np.log2(zero_p)) # return entropy
 
     def I(self, *X):
         return np.sum([((-1) ** (len(subset) - 1)) * self.H(*subset) for subset in powerset(X)])
@@ -206,8 +204,8 @@ if __name__ == '__main__':
     # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
     # data = load_mushrooms_data() # Load bigger discrete dataset
-    data = load_artificial_data(1000, 10000, 10, 2) # Load artificial data
-    # inter = Interactions(data)
+    data = load_artificial_data(1000, 50000, 50, 10) # Load artificial data
+    inter = Interactions(data)
     # data = load_xor_data()
     # test_H(data)
     # test_I(data)
@@ -222,21 +220,17 @@ if __name__ == '__main__':
 
     #CORRECTNES TESTING
     # print(inter.fast_H(data.X[:,5], data.X[:,11], data.Y))
-    # print(inter.H(data.X[:,5], data.X[:,11], data.Y))
+    # inter.H(data.X[:,5])
+    # inter.I(data.X[:,5], data.X[:,6])
 
     #SPEED TESTING:
-    # wrapped = wrapper(inter.H, a, b)
-    # print("H time:", timeit.timeit(wrapped, number=10))
-    # ent = inter.H(a, b)
-    # print(ent)
-    #
-    # wrapped = wrapper(inter.fast_H, a, b)
-    # print("fast_H time:", timeit.timeit(wrapped, number=10))
-    # ent = inter.fast_H(a, b)
+    # wrapped = wrapper(inter.H, data.X[:,0], data.X[:,1], data.Y)
+    # print("H time:", timeit.timeit(wrapped, number=3))
+    # ent = inter.H(data.X[:,0], data.X[:,1], data.Y)
     # print(ent)
 
-    wrapped = wrapper(test_interaction_matrix, data)
-    print("Time:", timeit.timeit(wrapped, number=3))
+    # wrapped = wrapper(test_interaction_matrix, data)
+    # print("Time:", timeit.timeit(wrapped, number=3))
 
 
 
