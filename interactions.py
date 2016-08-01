@@ -55,18 +55,22 @@ class Interactions:
     def H(self, *X):
         no_att = len(X)
         if no_att == 1:
-            uniques, counts = np.unique(X[0], return_counts=True)
-            probs = (counts + 1) / (self.m + len(uniques))
+            x = X[0][~np.isnan(X[0])] # remove NaNs
+            uniques, counts = np.unique(x, return_counts=True)
+            probs = (counts + 1) / (len(x) + len(uniques))
             return np.sum(-p*np.log2(p) for p in probs)
         else:
-            uniques = [np.unique(x) for x in X] # get unique values for each attribute column
+            uniques = [np.unique(x[~np.isnan(x)]) for x in X] # get unique values for each attribute column, don't count NaNs
             k = np.prod([len(x) for x in uniques]) # get the number of values in the cartesian product
             M = np.column_stack(X) # stack columns in a matrix
-            M = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att))) # represent as contiguousarray
-            # M = M.view(M.dtype.descr * no_att)  # using structured arrays is memory efficient, but a little slower
-            _, counts = np.unique(M, return_counts=True) # count the ocurances of joined attribute values
-            probs = (counts + 1) / (self.m + k) # get probabilities (additive smoothing)
-            zero_p = 1/(self.m + k) # the values that do not appear have a non zero probability (additive smoothing)
+            M = M[~np.isnan(M).any(axis=1)] # remove samples that contain NaNs
+            m = len(M) # number of samples remaining
+            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att))) # represent as contiguousarray
+            # M_struct = M.view(M.dtype.descr * no_att)  # using structured arrays is memory efficient, but a little slower
+            _, counts = np.unique(M_cont, return_counts=True) # count the ocurances of joined attribute values
+            # print(uniques.view(M.dtype).reshape(-1, no_att)) # print uniques in a readble form
+            probs = (counts + 1) / (m + k) # get probabilities (additive smoothing)
+            zero_p = 1/(m + k) # the values that do not appear have a non zero probability (additive smoothing)
             return np.sum(-p*np.log2(p) for p in probs) + (k-len(counts))*(-zero_p*np.log2(zero_p)) # return entropy
 
     def I(self, *X):
@@ -107,25 +111,33 @@ def load_xor_data():
     data = Table(X, Y)
     return data
 
-def load_artificial_data(no_att, no_samples, no_unique_values, no_classes):
-    X = np.array([np.random.randint(no_unique_values, size=no_samples) for i in range(no_att)]).T
-    Y = np.random.randint(no_classes, size=no_samples)
+def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_nans=False, no_class_nans=False):
+    X = np.array([np.random.randint(no_unique_values, size=no_samples) for i in range(no_att)]).T.astype(np.float32)
+    if no_nans:
+        np.put(X, np.random.choice(range(no_samples*no_att), no_nans, replace=False), np.nan) #put in some nans
+    Y = np.random.randint(no_classes, size=no_samples).astype(np.float32)
+    if no_class_nans:
+        np.put(Y, np.random.choice(range(no_samples), no_class_nans, replace=False), np.nan) #put in some nans
     data = Table(X, Y)
     return data
 
-def load_mushrooms_data(no_samples=False):
+def load_mushrooms_data(no_samples=False, random_nans_no=False):
     shrooms_data = np.array(np.genfromtxt("./data/agaricus-lepiota.data", delimiter=",", dtype=str))
     # Convert mushroom data from strings to integers
     for i in range(len(shrooms_data[0, :])):
         u, ints = np.unique(shrooms_data[:, i], return_inverse=True)
         shrooms_data[:, i] = ints
+    shrooms_data = shrooms_data.astype(np.float32)
+    if random_nans_no:
+        np.put(shrooms_data, np.random.choice(range(shrooms_data.shape[0]*shrooms_data.shape[1]), random_nans_no, replace=False), np.nan)
+    print(np.sum(np.isnan(shrooms_data)))
     if no_samples:
         #sample a smaller subset of mushrooms data
         np.random.shuffle(shrooms_data)
         shrooms_data = shrooms_data[:no_samples,:]
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
-    data = Table(X_shrooms, Y_shrooms)  # Make and Orange.Table object, without domain added
+    data = Table(X_shrooms, Y_shrooms)  # Make an Orange.Table object, without domain added
     # it thinks attributes are countinous but for this test it doesn't really matter, to fix this add domain
     return data
 
@@ -203,25 +215,39 @@ def test_interaction_matrix(data):
 if __name__ == '__main__':
     # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
-    # data = load_mushrooms_data() # Load bigger discrete dataset
-    data = load_artificial_data(1000, 50000, 50, 10) # Load artificial data
+    data = load_mushrooms_data(random_nans_no=5000) # Load bigger discrete dataset
+    # data = load_artificial_data(10, 500, 20, 2, 100, 10) # Load artificial data
     inter = Interactions(data)
     # data = load_xor_data()
-    # test_H(data)
-    # test_I(data)
-    # test_attribute_interactions(data)
-    # test_interaction_matrix(data)
-
-    #GENERATE SOME RANDOM DATA
-    # np.random.seed(42)
-    # a = np.random.randint(50, size=10000)
-    # b = np.random.randint(50, size=10000)
-    # c = np.random.randint(20, size=10000)
+    test_H(data)
+    test_I(data)
+    test_attribute_interactions(data)
+    test_interaction_matrix(data)
 
     #CORRECTNES TESTING
     # print(inter.fast_H(data.X[:,5], data.X[:,11], data.Y))
     # inter.H(data.X[:,5])
     # inter.I(data.X[:,5], data.X[:,6])
+
+    #TESTING NANS
+    # np.random.seed(42)
+    # a = list(np.random.randint(3, size=10))
+    # a[np.random.randint(10,size=1)[0]] = np.nan
+    # a = np.array(a)
+    #
+    # b = list(np.random.randint(3, size=10))
+    # b[np.random.randint(10, size=1)[0]] = np.nan
+    # b = np.array(b)
+    #
+    # c = list(np.random.randint(3, size=10))
+    # c[np.random.randint(10, size=1)[0]] = np.nan
+    # c = np.array(c)
+    # print(a)
+    # print(b)
+    # print(c)
+    # print(inter.H(a))
+    # print(inter.H(a, b))
+    # print(inter.H(a, b, c))
 
     #SPEED TESTING:
     # wrapped = wrapper(inter.H, data.X[:,0], data.X[:,1], data.Y)
