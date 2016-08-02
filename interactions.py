@@ -101,9 +101,13 @@ class Interactions:
 
     def interaction_matrix(self):
         #TODO: Does this matrix contain Interaction classes as values or some specific value like relative info gain of both attributes?
-        #TODO: Is there a more efficient way to do this since this is a symetric matrix?
         #TODO: Does DistMatrix need some metadata?
-        return distmatrix.DistMatrix(np.array([[self.attribute_interactions(a, b).rel_ig_ab for a in range(self.n)] for b in range(self.n)]))
+        int_M = np.zeros((self.n, self.n))
+        for i in range(self.n): # Since this is a symetrix matrix we just compute the lower triangle and than copy
+            for j in range(i+1): # TODO: I(X,X,Y) > I(X,Y) because of additive smoothing, but this is a kind of misinformation
+# TODO: since an atrribute in combination with itself does not in fact provide more information, should diagonal elements be ommited then???
+                int_M[i, j] = self.attribute_interactions(i, j).rel_ig_ab
+        return distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
 
 def load_xor_data():
     X = np.array([[0,0], [0,1], [1,0], [1,1]])
@@ -130,7 +134,7 @@ def load_mushrooms_data(no_samples=False, random_nans_no=False):
     shrooms_data = shrooms_data.astype(np.float32)
     if random_nans_no:
         np.put(shrooms_data, np.random.choice(range(shrooms_data.shape[0]*shrooms_data.shape[1]), random_nans_no, replace=False), np.nan)
-    print(np.sum(np.isnan(shrooms_data)))
+    # print(np.sum(np.isnan(shrooms_data)))
     if no_samples:
         #sample a smaller subset of mushrooms data
         np.random.shuffle(shrooms_data)
@@ -211,18 +215,24 @@ def test_interaction_matrix(data):
     inter = Interactions(data)
     interaction_M = inter.interaction_matrix()
     print(interaction_M.shape)
+    # print(np.min(interaction_M))
+    # print(np.max(interaction_M))
+    # print(interaction_M.diagonal())
+    # i, j = np.unravel_index(interaction_M.argmax(), interaction_M.shape)
+    # print(i, j)
 
 if __name__ == '__main__':
     # TODO: test correctnes of H and I
     # data = Table("lenses")  # Load discrete dataset
-    data = load_mushrooms_data(random_nans_no=5000) # Load bigger discrete dataset
+    # data = load_mushrooms_data(random_nans_no=5000) # Load bigger discrete dataset
+    data = load_mushrooms_data() # Load bigger discrete dataset
     # data = load_artificial_data(10, 500, 20, 2, 100, 10) # Load artificial data
     inter = Interactions(data)
     # data = load_xor_data()
-    test_H(data)
-    test_I(data)
-    test_attribute_interactions(data)
-    test_interaction_matrix(data)
+    # test_H(data)
+    # test_I(data)
+    # test_attribute_interactions(data)
+    # test_interaction_matrix(data)
 
     #CORRECTNES TESTING
     # print(inter.fast_H(data.X[:,5], data.X[:,11], data.Y))
