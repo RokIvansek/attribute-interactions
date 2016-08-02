@@ -1,9 +1,7 @@
 import numpy as np
-from Orange.data import Table
-from Orange.misc import distmatrix
-from sklearn.utils.extmath import cartesian
+import Orange
+from itertools import chain, combinations, product
 from functools import reduce
-from itertools import chain, combinations
 import timeit
 
 def wrapper(func, *args, **kwargs):
@@ -43,12 +41,18 @@ class Interaction:
 
 
 class Interactions:
-    def __init__(self, data):
+    def __init__(self, data, disc_intervals=3, alpha=0.01):
         self.data = data
         self.n = len(self.data.domain.attributes)  # TODO: What is a better way to get this two numbers m and n
         self.m = len(self.data.X[:, 0])
+        self.alpha = alpha # alpha is the smoothing parameter for additive (Laplace) smoothing of empirical probabilities
         # TODO: Check for sparse data
-        # TODO: Discretize continous attributes
+        discretizer = Orange.preprocess.Discretize() # Discretize continous attributes
+        discretizer.method = Orange.preprocess.discretize.EqualFreq(disc_intervals)
+        # TODO: should there be an option to choose the method
+        # TODO: of dicscretization too? For now it is just equal frequences on three intervals.
+        # TODO: What is the proper way to make this optional, input arguments when initializing Interactions class?
+        self.data = discretizer(self.data)
         self.info_gains = self.get_information_gains()  # calculate info gain for all atrributes
         self.class_entropy = self.H(self.data.Y) #you will need this for relative information gain
 
@@ -69,9 +73,9 @@ class Interactions:
             # M_struct = M.view(M.dtype.descr * no_att)  # using structured arrays is memory efficient, but a little slower
             _, counts = np.unique(M_cont, return_counts=True) # count the ocurances of joined attribute values
             # print(uniques.view(M.dtype).reshape(-1, no_att)) # print uniques in a readble form
-            probs = (counts + 1) / (m + k) # get probabilities (additive smoothing)
-            zero_p = 1/(m + k) # the values that do not appear have a non zero probability (additive smoothing)
-            return np.sum(-p*np.log2(p) for p in probs) + (k-len(counts))*(-zero_p*np.log2(zero_p)) # return entropy
+            probs = (counts + self.alpha) / (m + self.alpha*k) # get probabilities (additive smoothing)
+            zero_p = self.alpha/(m + k) # the values that do not appear can have a non zero probability (additive smoothing)
+            return np.sum(-p*np.log2(p) for p in probs) + ((k-len(counts))*(-zero_p*np.log2(zero_p)) if self.alpha !=0 else 0)# return entropy
 
     def I(self, *X):
         return np.sum([((-1) ** (len(subset) - 1)) * self.H(*subset) for subset in powerset(X)])
@@ -107,12 +111,13 @@ class Interactions:
             for j in range(i+1): # TODO: I(X,X,Y) > I(X,Y) because of additive smoothing, but this is a kind of misinformation
 # TODO: since an atrribute in combination with itself does not in fact provide more information, should diagonal elements be ommited then???
                 int_M[i, j] = self.attribute_interactions(i, j).rel_ig_ab
-        return distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
+        return Orange.misc.distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
 
 def load_xor_data():
     X = np.array([[0,0], [0,1], [1,0], [1,1]])
     Y = np.array([0,1,1,0])
-    data = Table(X, Y)
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable("attribute1"), Orange.data.DiscreteVariable("attribute2")], Orange.data.DiscreteVariable("xor"))
+    data = Orange.data.Table(domain, X, Y)
     return data
 
 def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_nans=False, no_class_nans=False):
@@ -122,7 +127,7 @@ def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_na
     Y = np.random.randint(no_classes, size=no_samples).astype(np.float32)
     if no_class_nans:
         np.put(Y, np.random.choice(range(no_samples), no_class_nans, replace=False), np.nan) #put in some nans
-    data = Table(X, Y)
+    data = Orange.data.Table(X, Y)
     return data
 
 def load_mushrooms_data(no_samples=False, random_nans_no=False):
@@ -141,12 +146,13 @@ def load_mushrooms_data(no_samples=False, random_nans_no=False):
         shrooms_data = shrooms_data[:no_samples,:]
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
-    data = Table(X_shrooms, Y_shrooms)  # Make an Orange.Table object, without domain added
-    # it thinks attributes are countinous but for this test it doesn't really matter, to fix this add domain
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable("attribute" + str(i)) for i in range(1,X_shrooms.shape[1]+1)],
+                                Orange.data.DiscreteVariable("edible"))
+    data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
     return data
 
-def test_H(data, a=0, b=1):
-    inter = Interactions(data)
+def test_H(data, a=0, b=1, alpha=0.01):
+    inter = Interactions(data, alpha=alpha)
     print("Single entropy of attribute", data.domain.attributes[a], inter.H(data.X[:, a]))
     print("Single entropy of attribute", data.domain.attributes[b], inter.H(data.X[:, b]))
     print("Single entropy of class variable:", inter.H(data.Y))
@@ -155,9 +161,9 @@ def test_H(data, a=0, b=1):
     print("Joined entropy of attributes", data.domain.attributes[a], ",", data.domain.attributes[b],
           "and class variable:", inter.H(data.X[:, a], data.X[:, b], data.Y))
 
-def test_I(data, a=0, b=1):
+def test_I(data, a=0, b=1, alpha=0.01):
     #Test infromation gain function
-    inter = Interactions(data)
+    inter = Interactions(data, alpha)
     gain_0 = inter.I(data.X[:, a], data.Y)
     gain_1 = inter.I(data.X[:, b], data.Y)
     interaction_01 = inter.I(data.X[:, a], data.X[:, b], data.Y)
@@ -166,9 +172,9 @@ def test_I(data, a=0, b=1):
     print("Interaction gain of atrributes", data.domain.attributes[a], "and", data.domain.attributes[b], ":", interaction_01)
     print("***************************************************************************")
 
-def test_attribute_interactions(data):
+def test_attribute_interactions(data, alpha=0.01):
     #Test attribute interactions method
-    inter = Interactions(data)
+    inter = Interactions(data, alpha=alpha)
     print("-------------------------------------------------------------------------")
     print("All absolute information gains of individual attributes:")
     print("-------------------------------------------------------------------------")
@@ -186,7 +192,7 @@ def test_attribute_interactions(data):
             chart_info = inter.attribute_interactions(a, b)
             charts.append(chart_info)
     charts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
-    top = 5
+    top = 1
     print("-------------------------------------------------------------------------")
     print("Top", top, "attribute combinations with highest total relative info gain:")
     print("-------------------------------------------------------------------------")
@@ -211,10 +217,10 @@ def test_attribute_interactions(data):
         print(chart_info)
         print("****************************************************************************")
 
-def test_interaction_matrix(data):
-    inter = Interactions(data)
+def test_interaction_matrix(data, alpha=1):
+    inter = Interactions(data, alpha=alpha)
     interaction_M = inter.interaction_matrix()
-    print(interaction_M.shape)
+    print(interaction_M)
     # print(np.min(interaction_M))
     # print(np.max(interaction_M))
     # print(interaction_M.diagonal())
@@ -223,15 +229,19 @@ def test_interaction_matrix(data):
 
 if __name__ == '__main__':
     # TODO: test correctnes of H and I
-    # data = Table("lenses")  # Load discrete dataset
-    # data = load_mushrooms_data(random_nans_no=5000) # Load bigger discrete dataset
-    data = load_mushrooms_data() # Load bigger discrete dataset
+    # data = Orange.data.Table("lenses")  # Load discrete dataset
+    # data = load_mushrooms_data(random_nans_no=500) # Load bigger discrete dataset
+    data = Orange.data.Table("iris")  # load contionous dataset
+    # TODO: test discretizer on lots of other datasets
+    # data = load_mushrooms_data() # Load bigger discrete dataset
     # data = load_artificial_data(10, 500, 20, 2, 100, 10) # Load artificial data
-    inter = Interactions(data)
     # data = load_xor_data()
+
+    # inter = Interactions(data)
+
     # test_H(data)
     # test_I(data)
-    # test_attribute_interactions(data)
+    test_attribute_interactions(data)
     # test_interaction_matrix(data)
 
     #CORRECTNES TESTING
