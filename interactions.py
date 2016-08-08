@@ -74,6 +74,7 @@ class Interactions:
         self.info_gains = {self.data.domain.attributes[i]: self.i(self.data.X[:, i], self.data.Y)
                            for i in range(self.n)}
         self.class_entropy = self.h(self.data.Y)  # You will need this for relative information gain
+        self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
 
     def h(self, *X):
         """Computes single/joined entropy. Excepts an arbitrary number of parameters. """
@@ -89,14 +90,14 @@ class Interactions:
             M = np.column_stack(X)  # Stack columns in a matrix.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = len(M)  # Number of samples remaining after NaNs have been removed.
-            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
-            # M_struct = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but slower.
+            # M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
+            M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
             # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
             probs = (counts + self.alpha) / (m + self.alpha*k)  # Get probabilities (use additive smoothing).
             zero_p = self.alpha/(m + k)  # The combinations that do not appear have a non zero probability.
             return np.sum(-p*np.log2(p) for p in probs) + \
-                   ((-len(counts))*(-zero_p*np.log2(zero_p)) if self.alpha !=0 else 0)
+                   ((k-len(counts))*(-zero_p*np.log2(zero_p)) if self.alpha !=0 else 0)
 
     def i(self, *X):
         """Computes information gain. 2 variables example: I(X;Y) = H(X) + H(Y) - H(XY)"""
@@ -124,15 +125,31 @@ class Interactions:
 
     def interaction_matrix(self):
         """Computes the relative total information gain for all possible couples of attributes."""
+        # TODO: Since this method iterates trough all possible pairs of attributes, would it be wise to calculate
+        # TODO: a running sort of some kind to later access the most informative pairs without having to sort again?
         # TODO: Does this matrix contain Interaction objects as values or some specific value like
         # TODO relative info gain of both attributes? Does DistMatrix need some metadata?
         int_M = np.zeros((self.n, self.n))
-        for i in range(self.n):  # Since this is a symetrix matrix we just compute the lower triangle and than copy
+        for i in range(self.n):  # Since this is a symetrix matrix we just compute the lower triangle and then copy
             for j in range(i+1):  # TODO: i(X,X,Y) > i(X,Y) because of additive smoothing, but this is a kind of
         # TODO: misinformation since an atrribute in combination with itself does not in fact provide more information.
         # TODO: Should diagonal elements be ommited then???
-                int_M[i, j] = self.attribute_interactions(i, j)
+                o = self.attribute_interactions(i, j)
+                int_M[i, j] = o.rel_total_ig_ab
+                self.all_pairs.append(o)
         return Orange.misc.distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
+
+    def get_top_att(self, n, criteria=["total", "interaction"]):
+        """
+        Returns the Interaction objects of n most informative pairs of attributes.
+        For this to work, interaction_matrix must be called first.
+        """
+        if criteria == "total":
+            self.all_pairs.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
+            return self.all_pairs[:n]
+        if criteria == "interaction":
+            self.all_pairs.sort(key=lambda x: x.rel_ig_ab)
+            return self.all_pairs[:n]
 
 # THE ACTUAL LIBRARY ENDS HERE
 # ****************************
@@ -267,25 +284,34 @@ def wrapper(func, *args, **kwargs):
 
 
 if __name__ == '__main__':
-    # Example on how to use the class interaction:
-    d = Orange.data.Table("zoo") # Load  discrete dataset.
-    inter = Interactions(d) # Initialize Interactions object.
-    # Since info gain for single attributes is computed at initialization we can already look at it.
-    # To compute the interactions of all pairs of attributes we can use attribute_interactions method
-    interacts = [inter.attribute_interactions(a, b) for a in range(len(d.domain.attributes))
-                 for b in range(a+1, len(d.domain.attributes))]
-    # The same informations can be accessed using method interaction_matrix. This way we get a symetric matrix.
+    # # Example on how to use the class interaction:
+    # d = Orange.data.Table("zoo") # Load  discrete dataset.
+    # # d = load_mushrooms_data() # Load bigger dataset.
+    # inter = Interactions(d) # Initialize Interactions object.
+    # # Since info gain for single attributes is computed at initialization we can already look at it.
+    # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # # We get a symmetric matrix, but the same info is also stored in a list internally.
     # interacts_M = inter.interaction_matrix()
-    # We can get the 3 combinations that provide the most info about the class variable.
-    interacts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True) # We sort according to rel_total_ig_ab attribute
-    best_total = interacts[:3]
-    for a in best_total: # Interaction objects also print nicely.
-        print(a)
+    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    # best_total = inter.get_top_att(3, criteria="total")
+    # for a in best_total: # Interaction objects also print nicely.
+    #     print(a)
+    #     print("*****************************************************************")
 
 
     #SPEED TESTING:
-    # wrapped = wrapper(inter.h, d.X[:,0], d.X[:,1], d.Y)
-    # print("h time:", timeit.timeit(wrapped, number=3))
+    d = load_artificial_data(1000, 10000, 50, 10, 100, 5)
+    inter = Interactions(d)
+
+    wrapped = wrapper(inter.i, d.X[:, 0])
+    print("h time:", timeit.timeit(wrapped, number=3)/3)
+
+    wrapped = wrapper(inter.i, d.X[:, 0], d.X[:, 1])
+    print("h time:", timeit.timeit(wrapped, number=3)/3)
+
+    wrapped = wrapper(inter.i, d.X[:,0], d.X[:,1], d.Y)
+    print("h time:", timeit.timeit(wrapped, number=3)/3)
+
     # ent = inter.h(d.X[:,0], d.X[:,1], d.Y)
     # print(ent)
 
