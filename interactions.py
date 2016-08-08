@@ -90,8 +90,8 @@ class Interactions:
             M = np.column_stack(X)  # Stack columns in a matrix.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = len(M)  # Number of samples remaining after NaNs have been removed.
-            # M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
-            M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but slower.
+            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
+            # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
             # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
             probs = (counts + self.alpha) / (m + self.alpha*k)  # Get probabilities (use additive smoothing).
@@ -114,12 +114,15 @@ class Interactions:
         """
 
         # TODO: How to access atrribute values (columns) if name of attribute is given?
-        # TODO: For now suppose a and b are integers.
-        ig_a = self.i(self.data.X[:, a], self.data.Y)
-        ig_b = self.i(self.data.X[:, b], self.data.Y)
-        ig_ab = self.i(self.data.X[:, a], self.data.X[:, b],  self.data.Y)
+        # TODO: For now suppose a and b are integers. If they are not, first get integers or else below code won't work.
         a_name = self.data.domain.attributes[a]
         b_name = self.data.domain.attributes[b]
+        ig_a = self.info_gains[a_name]  # We already have this info from initialization.
+        ig_b = self.info_gains[b_name]
+        # ig_ab = self.i(self.data.X[:, a], self.data.X[:, b],  self.data.Y) # Instead of computing everything again, we
+        # can use what we already have and just add what we need I(A:B:Y) = I(A:Y) + I(B:Y) - H(Y) - H(A:B) + H(A:B:Y)
+        ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.data.X[:, a], self.data.X[:, b])) + \
+                self.h(self.data.X[:, a], self.data.X[:, b], self.data.Y)
         inter = Interaction(a_name, b_name, ig_a, ig_b, ig_ab, self.class_entropy)
         return inter
 
@@ -284,33 +287,42 @@ def wrapper(func, *args, **kwargs):
 
 
 if __name__ == '__main__':
-    # # Example on how to use the class interaction:
+    # Example on how to use the class interaction:
     # d = Orange.data.Table("zoo") # Load  discrete dataset.
-    # # d = load_mushrooms_data() # Load bigger dataset.
-    # inter = Interactions(d) # Initialize Interactions object.
-    # # Since info gain for single attributes is computed at initialization we can already look at it.
-    # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
-    # # We get a symmetric matrix, but the same info is also stored in a list internally.
-    # interacts_M = inter.interaction_matrix()
-    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    # best_total = inter.get_top_att(3, criteria="total")
-    # for a in best_total: # Interaction objects also print nicely.
-    #     print(a)
-    #     print("*****************************************************************")
+    d = load_mushrooms_data() # Load bigger dataset.
+    inter = Interactions(d) # Initialize Interactions object.
+    # Since info gain for single attributes is computed at initialization we can already look at it.
+    # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # We get a symmetric matrix, but the same info is also stored in a list internally.
+    interacts_M = inter.interaction_matrix()
+    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    best_total = inter.get_top_att(3, criteria="total")
+    for a in best_total: # Interaction objects also print nicely.
+        print(a)
+        print("*****************************************************************")
 
 
     #SPEED TESTING:
-    d = load_artificial_data(1000, 10000, 50, 10, 100, 5)
-    inter = Interactions(d)
+    # d = load_artificial_data(100, 1000, 50, 10, 100, 5)
+    # inter = Interactions(d)
 
-    wrapped = wrapper(inter.i, d.X[:, 0])
-    print("h time:", timeit.timeit(wrapped, number=3)/3)
+    #testing i
+    # wrapped = wrapper(inter.i, d.X[:, 0])
+    # print("time:", timeit.timeit(wrapped, number=3)/3)
+    #
+    # wrapped = wrapper(inter.i, d.X[:, 0], d.X[:, 1])
+    # print("time:", timeit.timeit(wrapped, number=3)/3)
+    #
+    # wrapped = wrapper(inter.i, d.X[:,0], d.X[:,1], d.Y)
+    # print("time:", timeit.timeit(wrapped, number=3)/3)
 
-    wrapped = wrapper(inter.i, d.X[:, 0], d.X[:, 1])
-    print("h time:", timeit.timeit(wrapped, number=3)/3)
+    #testing attribute_interactions
+    # wrapped = wrapper(inter.attribute_interactions, 0, 1)
+    # print("time:", timeit.timeit(wrapped, number=3)/3)
 
-    wrapped = wrapper(inter.i, d.X[:,0], d.X[:,1], d.Y)
-    print("h time:", timeit.timeit(wrapped, number=3)/3)
+    #testing interaction matrix
+    # wrapped = wrapper(inter.interaction_matrix)
+    # print("time:", timeit.timeit(wrapped, number=3) / 3)
 
     # ent = inter.h(d.X[:,0], d.X[:,1], d.Y)
     # print(ent)
