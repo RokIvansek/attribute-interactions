@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import csr_matrix
 import Orange
 from itertools import chain, combinations
 import timeit
@@ -53,7 +54,7 @@ class Interactions:
     It works on discrete datasets - continuous attributes/classes are discretized using equal frequencies
     discretization.
     """
-    def __init__(self, data, disc_intervals=3, alpha=0.01):
+    def __init__(self, data, disc_intervals=3, alpha=0.01): # TODO: add preprocesor object
         """
 
         :param data: Orange data table.
@@ -61,8 +62,8 @@ class Interactions:
         :param alpha: Additive (Laplace) smoothing parameter.
         """
         self.data = data
-        self.n = len(self.data.domain.attributes)  # TODO: What is a better way to get this two numbers m and n?
-        self.m = len(self.data.X[:, 0])
+        self.n = self.data.X.shape[1]  # TODO: What is a better way to get this two numbers m and n?
+        self.m = self.data.X.shape[0]
         self.alpha = alpha
         # TODO: Check for sparse data
         discretizer = Orange.preprocess.Discretize()
@@ -78,6 +79,7 @@ class Interactions:
 
     def h(self, *X):
         """Computes single/joined entropy. Excepts an arbitrary number of parameters. """
+        # TODO: Should this function accept attribute numbers/names instead of arrays?
         no_att = len(X)
         if no_att == 1:
             x = X[0][~np.isnan(X[0])]  # remove NaNs
@@ -130,16 +132,14 @@ class Interactions:
         """Computes the relative total information gain for all possible couples of attributes."""
         # TODO: Since this method iterates trough all possible pairs of attributes, would it be wise to calculate
         # TODO: a running sort of some kind to later access the most informative pairs without having to sort again?
-        # TODO: Does this matrix contain Interaction objects as values or some specific value like
-        # TODO relative info gain of both attributes? Does DistMatrix need some metadata?
         int_M = np.zeros((self.n, self.n))
-        for i in range(self.n):  # Since this is a symetrix matrix we just compute the lower triangle and then copy
+        for i in range(self.n):  # Since this is a symetric matrix we just compute the lower triangle and then copy
             for j in range(i+1):  # TODO: i(X,X,Y) > i(X,Y) because of additive smoothing, but this is a kind of
         # TODO: misinformation since an atrribute in combination with itself does not in fact provide more information.
         # TODO: Should diagonal elements be ommited then???
                 o = self.attribute_interactions(i, j)
-                int_M[i, j] = o.rel_total_ig_ab
-                self.all_pairs.append(o)
+                int_M[i, j] = o.rel_ig_ab  # Store actual interaction info
+                self.all_pairs.append(o) # Stores the entire Interaction object in a list
         return Orange.misc.distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
 
     def get_top_att(self, n, criteria=["total", "interaction"]):
@@ -166,13 +166,16 @@ def load_xor_data():
     return data
 
 
-def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_nans=False, no_class_nans=False):
+def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_nans=False, no_class_nans=False, sparse=False):
     X = np.array([np.random.randint(no_unique_values, size=no_samples) for i in range(no_att)]).T.astype(np.float32)
     if no_nans:
         np.put(X, np.random.choice(range(no_samples*no_att), no_nans, replace=False), np.nan) #put in some nans
     Y = np.random.randint(no_classes, size=no_samples).astype(np.float32)
     if no_class_nans:
         np.put(Y, np.random.choice(range(no_samples), no_class_nans, replace=False), np.nan) #put in some nans
+    if sparse:
+        np.put(X, np.random.choice(range(no_samples*no_att), sparse, replace=False), 0)  #make the X array sparse
+        X = csr_matrix(X)
     data = Orange.data.Table(X, Y)
     return data
 
@@ -287,29 +290,34 @@ def wrapper(func, *args, **kwargs):
 
 
 if __name__ == '__main__':
-    # Example on how to use the class interaction:
-    # d = Orange.data.Table("zoo") # Load  discrete dataset.
-    d = load_mushrooms_data() # Load bigger dataset.
-    inter = Interactions(d) # Initialize Interactions object.
-    # Since info gain for single attributes is computed at initialization we can already look at it.
-    # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
-    # We get a symmetric matrix, but the same info is also stored in a list internally.
-    interacts_M = inter.interaction_matrix()
-    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    best_total = inter.get_top_att(3, criteria="total")
-    for a in best_total: # Interaction objects also print nicely.
-        print(a)
-        print("*****************************************************************")
+    # # Example on how to use the class interaction:
+    # # d = Orange.data.Table("zoo") # Load  discrete dataset.
+    # d = load_mushrooms_data() # Load bigger dataset.
+    # inter = Interactions(d) # Initialize Interactions object.
+    # # Since info gain for single attributes is computed at initialization we can already look at it.
+    # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # # We get a symmetric matrix, but the same info is also stored in a list internally.
+    # interacts_M = inter.interaction_matrix()
+    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    # best_total = inter.get_top_att(3, criteria="total")
+    # for i in best_total: # Interaction objects also print nicely.
+    #     print(i)
+    #     print("*****************************************************************")
 
+    #TEST SPARSE MATRICES:
+    d = load_artificial_data(100, 1000, 20, 5, sparse=50000)
+    inter=Interactions(d)
 
     #SPEED TESTING:
-    # d = load_artificial_data(100, 1000, 50, 10, 100, 5)
-    # inter = Interactions(d)
+    # d = load_artificial_data(100, 1000, 50, 10)
+    # inter = Interactions(d, alpha=0)
 
     #testing i
-    # wrapped = wrapper(inter.i, d.X[:, 0])
+    # wrapped = wrapper(inter.h, d.X[:, 0])
+    # ent = inter.h(d.X[:, 0])
+    # print(ent)
     # print("time:", timeit.timeit(wrapped, number=3)/3)
-    #
+
     # wrapped = wrapper(inter.i, d.X[:, 0], d.X[:, 1])
     # print("time:", timeit.timeit(wrapped, number=3)/3)
     #
