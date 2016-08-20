@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, csc_matrix, issparse
 import Orange
 from itertools import chain, combinations
 import timeit
@@ -62,6 +62,9 @@ class Interactions:
         :param alpha: Additive (Laplace) smoothing parameter.
         """
         self.data = data
+        self.sparse = issparse(self.data.X)  # Check for sparsity
+        # if isspmatrix_csr(self.data.X): # If it is a sparse csr matrix, make it csc
+        #     self.data.X = csc_matrix(self.data.X)
         self.n = self.data.X.shape[1]  # TODO: What is a better way to get this two numbers m and n?
         self.m = self.data.X.shape[0]
         self.alpha = alpha
@@ -77,33 +80,47 @@ class Interactions:
         self.class_entropy = self.h(self.data.Y)  # You will need this for relative information gain
         self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
 
-    def h(self, *X):
-        """Computes single/joined entropy. Excepts an arbitrary number of parameters. """
-        # TODO: Should this function accept attribute numbers/names instead of arrays?
+    def get_probs(self, *X):
+        """
+        Counts the frequencies of samples (rows) in a given n dimensional array X and
+        calculates probabilities with additive smoothing. Handles NaNs.
+
+        :param X: A sequence of 1D arrays (columns/attributes)
+        :return: Probabilities
+        """
+
         no_att = len(X)
         if no_att == 1:
             x = X[0][~np.isnan(X[0])]  # remove NaNs
-            uniques, counts = np.unique(x, return_counts=True)
-            probs = (counts + 1) / (len(x) + len(uniques))
-            return np.sum(-p*np.log2(p) for p in probs)
+            uniques, counts = np.unique(x, return_counts=True)  # count
+            probs = (counts + self.alpha) / (len(x) + self.alpha * len(uniques))  # additive smoothing
         else:
             uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
-            M = np.column_stack(X)  # Stack columns in a matrix.
+            M = np.column_stack((X))  # Stack the columns in a matrix.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
-            m = len(M)  # Number of samples remaining after NaNs have been removed.
+            m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
             # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
+            counts = np.concatenate((counts, np.zeros(k - len(counts)))) # Add the zero frequencies
             # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
-            probs = (counts + self.alpha) / (m + self.alpha*k)  # Get probabilities (use additive smoothing).
-            zero_p = self.alpha/(m + k)  # The combinations that do not appear have a non zero probability.
-            return np.sum(-p*np.log2(p) for p in probs) + \
-                   ((k-len(counts))*(-zero_p*np.log2(zero_p)) if self.alpha !=0 else 0)
+            probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
+        return probs
+
+    def h(self, probs):
+        """
+        Computes single/joined entropy from probabilities.
+
+        :param probs: A 1-dim array containing probabilites.
+        :return: Single/joined entropy.
+        """
+
+        return np.sum(-p*np.log2(p) for p in probs)
 
     def i(self, *X):
         """Computes information gain. 2 variables example: I(X;Y) = H(X) + H(Y) - H(XY)"""
-        return np.sum([((-1) ** (len(subset) - 1)) * self.h(*subset) for subset in powerset(X)])
+        return np.sum([((-1) ** (len(subset) - 1)) * self.h(self.get_probs(*subset)) for subset in powerset(X)])
 
     def attribute_interactions(self, a, b):
         """
@@ -123,8 +140,8 @@ class Interactions:
         ig_b = self.info_gains[b_name]
         # ig_ab = self.i(self.data.X[:, a], self.data.X[:, b],  self.data.Y) # Instead of computing everything again, we
         # can use what we already have and just add what we need I(A:B:Y) = I(A:Y) + I(B:Y) - H(Y) - H(A:B) + H(A:B:Y)
-        ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.data.X[:, a], self.data.X[:, b])) + \
-                self.h(self.data.X[:, a], self.data.X[:, b], self.data.Y)
+        ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b]))) + \
+                self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b], self.data.Y))
         inter = Interaction(a_name, b_name, ig_a, ig_b, ig_ab, self.class_entropy)
         return inter
 
@@ -180,7 +197,7 @@ def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_na
     return data
 
 
-def load_mushrooms_data(no_samples=False, random_nans_no=False):
+def load_mushrooms_data(no_samples=False, random_nans_no=False, sparse=False):
     shrooms_data = np.array(np.genfromtxt("./data/agaricus-lepiota.data", delimiter=",", dtype=str))
     # Convert mushroom data from strings to integers
     for i in range(len(shrooms_data[0, :])):
@@ -196,90 +213,92 @@ def load_mushrooms_data(no_samples=False, random_nans_no=False):
         shrooms_data = shrooms_data[:no_samples,:]
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
+    if sparse:
+        X_shrooms = csr_matrix(X_shrooms)
     domain = Orange.data.Domain([Orange.data.DiscreteVariable("attribute" + str(i)) for i in range(1,X_shrooms.shape[1]+1)],
                                 Orange.data.DiscreteVariable("edible"))
     data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
     return data
 
-
-def test_h(data, a=0, b=1, alpha=0.01):
-    inter = Interactions(data, alpha=alpha)
-    print("Single entropy of attribute", data.domain.attributes[a], inter.h(data.X[:, a]))
-    print("Single entropy of attribute", data.domain.attributes[b], inter.h(data.X[:, b]))
-    print("Single entropy of class variable:", inter.h(data.Y))
-    print("Joined entropy of attribute", data.domain.attributes[a], "and class variable:", inter.h(data.X[:, a], data.Y))
-    print("Joined entropy of attribute", data.domain.attributes[b], "and class variable:", inter.h(data.X[:, b], data.Y))
-    print("Joined entropy of attributes", data.domain.attributes[a], ",", data.domain.attributes[b],
-          "and class variable:", inter.h(data.X[:, a], data.X[:, b], data.Y))
-
-
-def test_i(data, a=0, b=1, alpha=0.01):
-    #Test infromation gain function
-    inter = Interactions(data, alpha)
-    gain_0 = inter.i(data.X[:, a], data.Y)
-    gain_1 = inter.i(data.X[:, b], data.Y)
-    interaction_01 = inter.i(data.X[:, a], data.X[:, b], data.Y)
-    print("Information gain for attribute", data.domain.attributes[a], ":", gain_0)
-    print("Information gain for attribute", data.domain.attributes[b], ":",  gain_1)
-    print("Interaction gain of atrributes", data.domain.attributes[a], "and", data.domain.attributes[b], ":", interaction_01)
-    print("***************************************************************************")
-
-
-def test_attribute_interactions(data, alpha=0.01):
-    #Test attribute interactions method
-    inter = Interactions(data, alpha=alpha)
-    print("-------------------------------------------------------------------------")
-    print("All absolute information gains of individual attributes:")
-    print("-------------------------------------------------------------------------")
-    for key in inter.info_gains:
-        print(key, "abs info gain:", inter.info_gains[key])
-    print("-------------------------------------------------------------------------")
-    print("All relative information gains of individual attributes:")
-    print("-------------------------------------------------------------------------")
-    for key in inter.info_gains:
-        print(key, "rel info gain:", inter.info_gains[key]/inter.class_entropy)
-    #Print out info gain for all of the pairs of attributes
-    charts = []
-    for a in range(len(data.domain.attributes)):
-        for b in range(a+1, len(data.domain.attributes)):
-            chart_info = inter.attribute_interactions(a, b)
-            charts.append(chart_info)
-    charts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
-    top = 1
-    print("-------------------------------------------------------------------------")
-    print("Top", top, "attribute combinations with highest total relative info gain:")
-    print("-------------------------------------------------------------------------")
-    for i in range(top):
-        chart_info = charts[i]
-        print(chart_info)
-        print("****************************************************************************")
-    charts.sort(key=lambda x: x.rel_ig_ab)
-    print("-------------------------------------------------------------------------")
-    print("Top", top, "attribute combinations with lowest relative info gain:")
-    print("-------------------------------------------------------------------------")
-    for i in range(top):
-        chart_info = charts[i]
-        print(chart_info)
-        print("****************************************************************************")
-    charts.sort(key=lambda x: x.rel_ig_ab, reverse=True)
-    print("-------------------------------------------------------------------------")
-    print("Top", top, "attribute combinations with highest relative info gain:")
-    print("-------------------------------------------------------------------------")
-    for i in range(top):
-        chart_info = charts[i]
-        print(chart_info)
-        print("****************************************************************************")
-
-
-def test_interaction_matrix(data, alpha=1):
-    inter = Interactions(data, alpha=alpha)
-    interaction_M = inter.interaction_matrix()
-    print(interaction_M)
-    # print(np.min(interaction_M))
-    # print(np.max(interaction_M))
-    # print(interaction_M.diagonal())
-    # i, j = np.unravel_index(interaction_M.argmax(), interaction_M.shape)
-    # print(i, j)
+#
+# def test_h(data, a=0, b=1, alpha=0.01):
+#     inter = Interactions(data, alpha=alpha)
+#     print("Single entropy of attribute", data.domain.attributes[a], inter.h(data.X[:, a]))
+#     print("Single entropy of attribute", data.domain.attributes[b], inter.h(data.X[:, b]))
+#     print("Single entropy of class variable:", inter.h(data.Y))
+#     print("Joined entropy of attribute", data.domain.attributes[a], "and class variable:", inter.h(data.X[:, a], data.Y))
+#     print("Joined entropy of attribute", data.domain.attributes[b], "and class variable:", inter.h(data.X[:, b], data.Y))
+#     print("Joined entropy of attributes", data.domain.attributes[a], ",", data.domain.attributes[b],
+#           "and class variable:", inter.h(data.X[:, a], data.X[:, b], data.Y))
+#
+#
+# def test_i(data, a=0, b=1, alpha=0.01):
+#     #Test infromation gain function
+#     inter = Interactions(data, alpha)
+#     gain_0 = inter.i(data.X[:, a], data.Y)
+#     gain_1 = inter.i(data.X[:, b], data.Y)
+#     interaction_01 = inter.i(data.X[:, a], data.X[:, b], data.Y)
+#     print("Information gain for attribute", data.domain.attributes[a], ":", gain_0)
+#     print("Information gain for attribute", data.domain.attributes[b], ":",  gain_1)
+#     print("Interaction gain of atrributes", data.domain.attributes[a], "and", data.domain.attributes[b], ":", interaction_01)
+#     print("***************************************************************************")
+#
+#
+# def test_attribute_interactions(data, alpha=0.01):
+#     #Test attribute interactions method
+#     inter = Interactions(data, alpha=alpha)
+#     print("-------------------------------------------------------------------------")
+#     print("All absolute information gains of individual attributes:")
+#     print("-------------------------------------------------------------------------")
+#     for key in inter.info_gains:
+#         print(key, "abs info gain:", inter.info_gains[key])
+#     print("-------------------------------------------------------------------------")
+#     print("All relative information gains of individual attributes:")
+#     print("-------------------------------------------------------------------------")
+#     for key in inter.info_gains:
+#         print(key, "rel info gain:", inter.info_gains[key]/inter.class_entropy)
+#     #Print out info gain for all of the pairs of attributes
+#     charts = []
+#     for a in range(len(data.domain.attributes)):
+#         for b in range(a+1, len(data.domain.attributes)):
+#             chart_info = inter.attribute_interactions(a, b)
+#             charts.append(chart_info)
+#     charts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
+#     top = 1
+#     print("-------------------------------------------------------------------------")
+#     print("Top", top, "attribute combinations with highest total relative info gain:")
+#     print("-------------------------------------------------------------------------")
+#     for i in range(top):
+#         chart_info = charts[i]
+#         print(chart_info)
+#         print("****************************************************************************")
+#     charts.sort(key=lambda x: x.rel_ig_ab)
+#     print("-------------------------------------------------------------------------")
+#     print("Top", top, "attribute combinations with lowest relative info gain:")
+#     print("-------------------------------------------------------------------------")
+#     for i in range(top):
+#         chart_info = charts[i]
+#         print(chart_info)
+#         print("****************************************************************************")
+#     charts.sort(key=lambda x: x.rel_ig_ab, reverse=True)
+#     print("-------------------------------------------------------------------------")
+#     print("Top", top, "attribute combinations with highest relative info gain:")
+#     print("-------------------------------------------------------------------------")
+#     for i in range(top):
+#         chart_info = charts[i]
+#         print(chart_info)
+#         print("****************************************************************************")
+#
+#
+# def test_interaction_matrix(data, alpha=1):
+#     inter = Interactions(data, alpha=alpha)
+#     interaction_M = inter.interaction_matrix()
+#     print(interaction_M)
+#     # print(np.min(interaction_M))
+#     # print(np.max(interaction_M))
+#     # print(interaction_M.diagonal())
+#     # i, j = np.unravel_index(interaction_M.argmax(), interaction_M.shape)
+#     # print(i, j)
 
 
 # A wrapper to use with timeit module to time functions.
@@ -290,23 +309,21 @@ def wrapper(func, *args, **kwargs):
 
 
 if __name__ == '__main__':
-    # # Example on how to use the class interaction:
-    # # d = Orange.data.Table("zoo") # Load  discrete dataset.
-    # d = load_mushrooms_data() # Load bigger dataset.
-    # inter = Interactions(d) # Initialize Interactions object.
-    # # Since info gain for single attributes is computed at initialization we can already look at it.
-    # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
-    # # We get a symmetric matrix, but the same info is also stored in a list internally.
-    # interacts_M = inter.interaction_matrix()
-    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    # best_total = inter.get_top_att(3, criteria="total")
-    # for i in best_total: # Interaction objects also print nicely.
-    #     print(i)
-    #     print("*****************************************************************")
-
-    #TEST SPARSE MATRICES:
-    d = load_artificial_data(100, 1000, 20, 5, sparse=50000)
-    inter=Interactions(d)
+    # Example on how to use the class interaction:
+    # d = Orange.data.Table("zoo") # Load  discrete dataset.
+    # d = load_artificial_data(100, 1000, 20, 5, sparse=50000) # Load sparse dataset
+    d = load_mushrooms_data() # Load bigger dataset.
+    inter = Interactions(d) # Initialize Interactions object.
+    print(inter.get_probs((inter.data.X[:,2], inter.data.X[:,5])))
+    # Since info gain for single attributes is computed at initialization we can already look at it.
+    # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # We get a symmetric matrix, but the same info is also stored in a list internally.
+    interacts_M = inter.interaction_matrix()
+    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    best_total = inter.get_top_att(3, criteria="total")
+    for i in best_total: # Interaction objects also print nicely.
+        print(i)
+        print("*****************************************************************")
 
     #SPEED TESTING:
     # d = load_artificial_data(100, 1000, 50, 10)
