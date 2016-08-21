@@ -62,9 +62,6 @@ class Interactions:
         :param alpha: Additive (Laplace) smoothing parameter.
         """
         self.data = data
-        self.sparse = issparse(self.data.X)  # Check for sparsity
-        # if isspmatrix_csr(self.data.X): # If it is a sparse csr matrix, make it csc
-        #     self.data.X = csc_matrix(self.data.X)
         self.n = self.data.X.shape[1]  # TODO: What is a better way to get this two numbers m and n?
         self.m = self.data.X.shape[0]
         self.alpha = alpha
@@ -75,29 +72,61 @@ class Interactions:
         # TODO: of dicscretization too? For now it is just equal frequencies on three intervals.
         # TODO: What is the proper way to make this optional, input arguments when initializing Interactions class?
         self.data = discretizer(self.data)  # Discretize continous attributes
-        self.info_gains = {self.data.domain.attributes[i]: self.i(self.data.X[:, i], self.data.Y)
-                           for i in range(self.n)}
-        self.class_entropy = self.h(self.data.Y)  # You will need this for relative information gain
+        self.sparse = issparse(self.data.X)  # Check for sparsity
+        if self.sparse: # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
+            self.data.X = csc_matrix(self.data.X)
+        # self.info_gains = {self.data.domain.attributes[i]: self.i(self.data.X[:, i], self.data.Y)
+        #                    for i in range(self.n)}
+        # self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
         self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
+
+    def get_counts_sparse(self, x, with_counts=True):
+        """Handle NaNs and count the values in a 1D sparse array."""
+        x_ = x.data[~np.isnan(x.data)]  # Getting just the non zero entries, excluding NaNs.
+        no_non_zeros = len(x_)
+        no_nans = len(x.data) - no_non_zeros
+        no_zeros = x.shape[0] - no_nans - no_non_zeros
+        uniques, counts = np.unique(x_, return_counts=True)  # count
+        if no_zeros != 0:
+            counts = np.concatenate((counts, [no_zeros]))  # adding the frequency of zeros
+            uniques = np.concatenate((uniques, [0]))  # adding zero to uniques
+        if with_counts:
+            return (counts, uniques)
+        else:
+            return uniques
+
+    def count_rows_sparse(self, X):
+        """Handle NaNs and return the frequencies of rows in a sparse matrix X"""
+        # TODO: Try finding a faster routine for counting rows. Converting to dense and then counting
+        # TODO: is 3 times slower than the routine for non sparse data (tested on the same data).
+        return
 
     def get_probs(self, *X):
         """
         Counts the frequencies of samples (rows) in a given n dimensional array X and
-        calculates probabilities with additive smoothing. Handles NaNs.
+        calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
 
-        :param X: A sequence of 1D arrays (columns/attributes)
+        :param X: A sequence of 1D arrays (columns/attributes), can be sparse.
         :return: Probabilities
         """
 
         no_att = len(X)
         if no_att == 1:
-            x = X[0][~np.isnan(X[0])]  # remove NaNs
-            uniques, counts = np.unique(x, return_counts=True)  # count
-            probs = (counts + self.alpha) / (len(x) + self.alpha * len(uniques))  # additive smoothing
+            if issparse(X[0]):
+                counts, uniques = self.get_counts_sparse(X[0])
+                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(uniques))  # additive smoothing
+            else:
+                x = X[0][~np.isnan(X[0])]  # remove NaNs
+                uniques, counts = np.unique(x, return_counts=True)  # count
+                probs = (counts + self.alpha) / (len(x) + self.alpha * len(uniques))  # additive smoothing
         else:
-            uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
+            if issparse(X[0]):
+                uniques = [self.get_counts_sparse(x, with_counts=False) for x in X]
+                M = np.column_stack((tuple([x.toarray() for x in X])))  # Get dense arrays and stack in a matrix
+            else:
+                uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
+                M = np.column_stack((X))  # Stack the columns in a matrix.
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
-            M = np.column_stack((X))  # Stack the columns in a matrix.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
@@ -112,7 +141,7 @@ class Interactions:
         """
         Computes single/joined entropy from probabilities.
 
-        :param probs: A 1-dim array containing probabilites.
+        :param probs: A 1-dim array containing probabilities.
         :return: Single/joined entropy.
         """
 
@@ -220,86 +249,6 @@ def load_mushrooms_data(no_samples=False, random_nans_no=False, sparse=False):
     data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
     return data
 
-#
-# def test_h(data, a=0, b=1, alpha=0.01):
-#     inter = Interactions(data, alpha=alpha)
-#     print("Single entropy of attribute", data.domain.attributes[a], inter.h(data.X[:, a]))
-#     print("Single entropy of attribute", data.domain.attributes[b], inter.h(data.X[:, b]))
-#     print("Single entropy of class variable:", inter.h(data.Y))
-#     print("Joined entropy of attribute", data.domain.attributes[a], "and class variable:", inter.h(data.X[:, a], data.Y))
-#     print("Joined entropy of attribute", data.domain.attributes[b], "and class variable:", inter.h(data.X[:, b], data.Y))
-#     print("Joined entropy of attributes", data.domain.attributes[a], ",", data.domain.attributes[b],
-#           "and class variable:", inter.h(data.X[:, a], data.X[:, b], data.Y))
-#
-#
-# def test_i(data, a=0, b=1, alpha=0.01):
-#     #Test infromation gain function
-#     inter = Interactions(data, alpha)
-#     gain_0 = inter.i(data.X[:, a], data.Y)
-#     gain_1 = inter.i(data.X[:, b], data.Y)
-#     interaction_01 = inter.i(data.X[:, a], data.X[:, b], data.Y)
-#     print("Information gain for attribute", data.domain.attributes[a], ":", gain_0)
-#     print("Information gain for attribute", data.domain.attributes[b], ":",  gain_1)
-#     print("Interaction gain of atrributes", data.domain.attributes[a], "and", data.domain.attributes[b], ":", interaction_01)
-#     print("***************************************************************************")
-#
-#
-# def test_attribute_interactions(data, alpha=0.01):
-#     #Test attribute interactions method
-#     inter = Interactions(data, alpha=alpha)
-#     print("-------------------------------------------------------------------------")
-#     print("All absolute information gains of individual attributes:")
-#     print("-------------------------------------------------------------------------")
-#     for key in inter.info_gains:
-#         print(key, "abs info gain:", inter.info_gains[key])
-#     print("-------------------------------------------------------------------------")
-#     print("All relative information gains of individual attributes:")
-#     print("-------------------------------------------------------------------------")
-#     for key in inter.info_gains:
-#         print(key, "rel info gain:", inter.info_gains[key]/inter.class_entropy)
-#     #Print out info gain for all of the pairs of attributes
-#     charts = []
-#     for a in range(len(data.domain.attributes)):
-#         for b in range(a+1, len(data.domain.attributes)):
-#             chart_info = inter.attribute_interactions(a, b)
-#             charts.append(chart_info)
-#     charts.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
-#     top = 1
-#     print("-------------------------------------------------------------------------")
-#     print("Top", top, "attribute combinations with highest total relative info gain:")
-#     print("-------------------------------------------------------------------------")
-#     for i in range(top):
-#         chart_info = charts[i]
-#         print(chart_info)
-#         print("****************************************************************************")
-#     charts.sort(key=lambda x: x.rel_ig_ab)
-#     print("-------------------------------------------------------------------------")
-#     print("Top", top, "attribute combinations with lowest relative info gain:")
-#     print("-------------------------------------------------------------------------")
-#     for i in range(top):
-#         chart_info = charts[i]
-#         print(chart_info)
-#         print("****************************************************************************")
-#     charts.sort(key=lambda x: x.rel_ig_ab, reverse=True)
-#     print("-------------------------------------------------------------------------")
-#     print("Top", top, "attribute combinations with highest relative info gain:")
-#     print("-------------------------------------------------------------------------")
-#     for i in range(top):
-#         chart_info = charts[i]
-#         print(chart_info)
-#         print("****************************************************************************")
-#
-#
-# def test_interaction_matrix(data, alpha=1):
-#     inter = Interactions(data, alpha=alpha)
-#     interaction_M = inter.interaction_matrix()
-#     print(interaction_M)
-#     # print(np.min(interaction_M))
-#     # print(np.max(interaction_M))
-#     # print(interaction_M.diagonal())
-#     # i, j = np.unravel_index(interaction_M.argmax(), interaction_M.shape)
-#     # print(i, j)
-
 
 # A wrapper to use with timeit module to time functions.
 def wrapper(func, *args, **kwargs):
@@ -312,22 +261,54 @@ if __name__ == '__main__':
     # Example on how to use the class interaction:
     # d = Orange.data.Table("zoo") # Load  discrete dataset.
     # d = load_artificial_data(100, 1000, 20, 5, sparse=50000) # Load sparse dataset
-    d = load_mushrooms_data() # Load bigger dataset.
-    inter = Interactions(d) # Initialize Interactions object.
-    print(inter.get_probs((inter.data.X[:,2], inter.data.X[:,5])))
+    # d = load_mushrooms_data(sparse=True) # Load bigger dataset.
+    # inter = Interactions(d) # Initialize Interactions object.
     # Since info gain for single attributes is computed at initialization we can already look at it.
     # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
     # We get a symmetric matrix, but the same info is also stored in a list internally.
-    interacts_M = inter.interaction_matrix()
-    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    best_total = inter.get_top_att(3, criteria="total")
-    for i in best_total: # Interaction objects also print nicely.
-        print(i)
-        print("*****************************************************************")
+    # interacts_M = inter.interaction_matrix()
+    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    # best_total = inter.get_top_att(3, criteria="total")
+    # for i in best_total: # Interaction objects also print nicely.
+    #     print(i)
+    #     print("*****************************************************************")
+
+    #TEST get_probs FOR SPARSE TABLE WITH NANS
+    d = load_mushrooms_data(sparse=True)  # Load bigger dataset.
+    inter = Interactions(d)  # Initialize Interactions object.
+
+    r = 2
+    s = 100
+    nans = 100
+
+    x1 = np.random.randint(r, size=s).astype(np.float32)
+    x1 = x1.reshape((s, 1))
+    np.put(x1, np.random.choice(range(len(x1)), size=nans, replace=False), np.nan)
+    x1_sparse = csr_matrix(x1)
+
+    x2 = np.random.randint(r, size=s).astype(np.float32)
+    x2 = x2.reshape((s, 1))
+    np.put(x2, np.random.choice(range(len(x1)), size=nans, replace=False), np.nan)
+    x2_sparse = csr_matrix(x2)
+
+    x3 = np.random.randint(r, size=s).astype(np.float32)
+    x3 = x3.reshape((s, 1))
+    np.put(x3, np.random.choice(range(len(x1)), size=nans, replace=False), np.nan)
+    x3_sparse = csr_matrix(x3)
+
+    # print(np.sort(inter.get_probs(x1, x2, x3)))
+    # print(np.sort(inter.get_probs(x1_sparse, x2_sparse, x3_sparse)))
 
     #SPEED TESTING:
     # d = load_artificial_data(100, 1000, 50, 10)
     # inter = Interactions(d, alpha=0)
+
+    #testin sparse routines
+    wrapped = wrapper(inter.get_probs, x1, x2, x3)
+    print("time non sparse:", timeit.timeit(wrapped, number=3) / 3)
+
+    wrapped = wrapper(inter.get_probs, x1_sparse, x2_sparse, x3_sparse)
+    print("time sparse:", timeit.timeit(wrapped, number=3) / 3)
 
     #testing i
     # wrapped = wrapper(inter.h, d.X[:, 0])
