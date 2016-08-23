@@ -4,7 +4,12 @@ import Orange
 import Orange.statistics.contingency
 from interactions import *
 import timeit
+import unittest
 
+
+class ExampleTests(unittest.TestCase):
+    def test_addition(self):
+        self.assertEqual(1 + 1, 2)
 
 def load_xor_data():
     X = np.array([[0,0], [0,1], [1,0], [1,1]])
