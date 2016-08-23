@@ -146,7 +146,7 @@ class Interactions:
         :return: Single/joined entropy.
         """
 
-        return np.sum(-p*np.log2(p) for p in probs)
+        return np.sum(-p*np.log2(p) if p > 0 else 0 for p in probs)
 
     def i(self, *X):
         """Computes information gain. 2 variables example: I(X;Y) = H(X) + H(Y) - H(XY)"""
@@ -223,8 +223,9 @@ def load_artificial_data(no_att, no_samples, no_unique_values, no_classes, no_na
     if sparse:
         np.put(X, np.random.choice(range(no_samples*no_att), sparse, replace=False), 0)  #make the X array sparse
         X = sp.csr_matrix(X)
-    domain = Orange.data.Domain([Orange.data.DiscreteVariable("Attribute" + str(i)) for i in range(1, X.shape[1] + 1)],
-                                Orange.data.DiscreteVariable("Class_variable"))
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable("Attribute" + str(i), [str(j) for j in range(no_unique_values)])
+                                 for i in range(1, X.shape[1] + 1)],
+                                Orange.data.DiscreteVariable("Class_variable", [str(j) for j in range(no_classes)]))
     data = Orange.data.Table(domain, X, Y)
     return data
 
@@ -263,19 +264,19 @@ def wrapper(func, *args, **kwargs):
 if __name__ == '__main__':
     # Example on how to use the class interaction:
     # d = Orange.data.Table("zoo") # Load  discrete dataset.
-    # d = load_artificial_data(50, 1000, 5, 3, no_nans=1000) # Load sparse dataset
-    d = load_mushrooms_data(sparse=True, random_nans_no=500) # Load bigger dataset.
+    d = load_artificial_data(3, 1000, 30, 10, sparse=100) # Load sparse dataset
+    # d = load_mushrooms_data(sparse=True, random_nans_no=500) # Load bigger dataset.
     # d = Orange.data.Table("titanic")
-    inter = Interactions(d) # Initialize Interactions object.
+    # inter = Interactions(d) # Initialize Interactions object.
     # # Since info gain for single attributes is computed at initialization we can already look at it.
     # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
     # # We get a symmetric matrix, but the same info is also stored in a list internally.
-    interacts_M = inter.interaction_matrix()
-    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    best_total = inter.get_top_att(3, criteria="total")
-    for i in best_total: # Interaction objects also print nicely.
-        print(i)
-        print("*****************************************************************")
+    # interacts_M = inter.interaction_matrix()
+    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    # best_total = inter.get_top_att(3, criteria="total")
+    # for i in best_total: # Interaction objects also print nicely.
+    #     print(i)
+    #     print("*****************************************************************")
 
     #TEST get_probs FOR SPARSE TABLE WITH NANS
     # d = load_mushrooms_data(sparse=True)  # Load bigger dataset.
@@ -306,12 +307,11 @@ if __name__ == '__main__':
     #SPEED TESTING:
 
     # d = Orange.data.Table("zoo")
-    # inter = Interactions(d, alpha=0)
+    # inter = Interactions(d)
 
-    #TODO: On artificial data you get an error here. "ValueError: minlength must be positive"
     # print(Orange.statistics.contingency.Discrete(d, 0))
     # print(inter.get_probs(inter.data.X[:,0], inter.data.Y))
-    #
+
     # #testing speed of contingency table
     # wrapped = wrapper(inter.get_probs, inter.data.X[:,0], inter.data.Y)
     # print("time my contingency:", timeit.timeit(wrapped, number=3) / 3)
