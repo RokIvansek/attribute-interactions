@@ -1,0 +1,2 @@
+include orangecontrib/interactions/tutorials/*.ows
+include orangecontrib/interactions/widgets/icons/*

@@ -44,13 +44,13 @@ class Interactions:
     It works on discrete datasets - continuous attributes/classes are discretized using equal frequencies
     discretization.
     """
-    def __init__(self, data, disc_intervals=3, alpha=0.01): # TODO: add preprocesor object
+    def __init__(self, data, disc_method=Orange.preprocess.discretize.EqualFreq(3), alpha=0.01):
         """
 
         Parameters
         ----------
         data Orange data table.
-        disc_intervals Number of intervals produced when discretizing continuous attributes.
+        disc_method A method for discretizing continuous attributes.
         alpha Additive (Laplace) smoothing parameter.
         """
 
@@ -59,10 +59,7 @@ class Interactions:
         self.m = self.data.X.shape[0]
         self.alpha = alpha
         discretizer = Orange.preprocess.Discretize()
-        discretizer.method = Orange.preprocess.discretize.EqualFreq(disc_intervals)
-        # TODO: Should there be an option to choose the method
-        # TODO: of dicscretization too? For now it is just equal frequencies on three intervals.
-        # TODO: What is the proper way to make this optional, input arguments when initializing Interactions class?
+        discretizer.method = disc_method  #TODO: Is this OK? Method as input argument?
         self.data = discretizer(self.data)  # Discretize continous attributes
         self.sparse = sp.issparse(self.data.X)  # Check for sparsity
         if self.sparse: # If it is a sparse matrix, make it csc, because it enables fast column slicing operations

@@ -65,8 +65,9 @@ def wrapper(func, *args, **kwargs):
 if __name__ == '__main__':
     # Example on how to use the class interaction:
     # d = Orange.data.Table("zoo") # Load  discrete dataset.
+    d = Orange.data.Table("iris") # Load continuous dataset.
     # d = load_artificial_data(3, 1000, 30, 10, sparse=100) # Load sparse dataset
-    d = load_mushrooms_data(sparse=True, random_nans_no=500) # Load bigger dataset.
+    # d = load_mushrooms_data(sparse=True, random_nans_no=500) # Load bigger dataset.
     # d = Orange.data.Table("titanic")
     inter = Interactions(d) # Initialize Interactions object.
     # # Since info gain for single attributes is computed at initialization we can already look at it.
