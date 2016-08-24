@@ -117,6 +117,9 @@ class Interactions:
                 uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
                 M = np.column_stack((X))  # Stack the columns in a matrix.
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
+            # TODO: Consider getting k as product len(self.data.domain.variables[i].values) of data for speed-up.
+            # TODO: To do this method get_probs should except indices of attributes instead of the actual
+            # TODO: corresponding arrays. Doing it this way would get rid of np.unique and np.isnan calls in line 114.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
@@ -202,4 +205,20 @@ class Interactions:
             return self.all_pairs[:n]
 
 
-
+if __name__ == '__main__':
+    # Example on how to use the class interaction:
+    d = Orange.data.Table("zoo") # Load  discrete dataset.
+    # d = Orange.data.Table("iris") # Load continuous dataset.
+    inter = Interactions(d) # Initialize Interactions object.
+    # Since info gain for single attributes is computed at initialization we can already look at it.
+    # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # We get a symmetric matrix, but the same info is also stored in a list internally.
+    interacts_M = inter.interaction_matrix()
+    for key in inter.info_gains:
+        print("Attribute", key, "info gain:", inter.info_gains[key])
+    print("*****************************************************************")
+    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    best_total = inter.get_top_att(3, criteria="total")
+    for i in best_total: # Interaction objects also print nicely.
+        print(i)
+        print("*****************************************************************")
