@@ -1,11 +1,9 @@
 import numpy as np
 import scipy.sparse as sp
 import Orange
-from ..utils import *
-from ..interactions import *
+from orangecontrib.interactions.utils import *
+from orangecontrib.interactions.interactions import *
 import unittest
-
-# TODO: How do I import interactions and utils? Relative import does not work when running python3 -m unittest test_interactions
 
 
 class ExampleTests(unittest.TestCase):

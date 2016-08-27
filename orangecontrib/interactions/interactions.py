@@ -1,15 +1,7 @@
 import numpy as np
 import scipy.sparse as sp
 import Orange
-from itertools import chain, combinations
-
-
-def powerset(iterable):
-    """
-    powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)
-    """
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(1, len(s)+1))  # without empty subset
+from orangecontrib.interactions.utils import powerset
 
 
 class Interaction:
@@ -119,7 +111,7 @@ class Interactions:
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
             # TODO: Consider getting k as product len(self.data.domain.variables[i].values) of data for speed-up.
             # TODO: To do this method get_probs should except indices of attributes instead of the actual
-            # TODO: corresponding arrays. Doing it this way would get rid of np.unique and np.isnan calls in line 114.
+            # TODO: corresponding arrays. Doing it this way would get rid of np.unique and np.isnan calls in if clause.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
