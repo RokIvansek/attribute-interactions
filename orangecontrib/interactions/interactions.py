@@ -112,6 +112,9 @@ class Interactions:
             # TODO: Consider getting k as product len(self.data.domain.variables[i].values) of data for speed-up.
             # TODO: To do this method get_probs should except indices of attributes instead of the actual
             # TODO: corresponding arrays. Doing it this way would get rid of np.unique and np.isnan calls in if clause.
+            # TODO: It is also not cool now because methods pass big arrays to each other. The cleanest way to change
+            # TODO: this would be to be able to access data with integers for instance possitive integers would be
+            # TODO: columns in X array and interger -1 Y array. Find out how to do this in Orange!!!
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
