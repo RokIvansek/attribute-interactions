@@ -46,22 +46,25 @@ class Interactions:
         alpha Additive (Laplace) smoothing parameter.
         """
 
+        if data.domain.class_var is None:
+            raise AttributeError("Classless data set!")
         self.data = data
         self.n = self.data.X.shape[1]
         self.m = self.data.X.shape[0]
+        if alpha < 0 or alpha > 1:
+            raise ValueError("alpha must be an element of interval [0, 1]")
         self.alpha = alpha
         discretizer = Orange.preprocess.Discretize()
-        discretizer.method = disc_method  #TODO: Is this OK? Method as input argument?
-        self.data = discretizer(self.data)  # Discretize continous attributes
+        discretizer.method = disc_method  # TODO: Is this OK? Method as input argument?
+        self.data = discretizer(self.data)
         self.sparse = sp.issparse(self.data.X)  # Check for sparsity
         if self.sparse: # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
-        self.info_gains = {self.data.domain.attributes[i]: self.i(self.data.X[:, i], self.data.Y)
+        self.info_gains = {self.data.domain.attributes[i].name: self.i(self.data.X[:, i], self.data.Y)
                            for i in range(self.n)}
         self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
         self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
-        self.int_M_called = False
 
     def get_counts_sparse(self, x, with_counts=True):
         """Handle NaNs and count the values in a 1D sparse array."""
@@ -142,6 +145,8 @@ class Interactions:
 
     def i(self, *X):
         """Computes information gain. 2 variables example: I(X;Y) = H(X) + H(Y) - H(XY)"""
+        if len(X) == 1:
+            raise TypeError("Provide at least two arguments!")
         return np.sum([((-1) ** (len(subset) - 1)) * self.h(self.get_probs(*subset)) for subset in powerset(X)])
 
     def attribute_interactions(self, a, b):
@@ -158,8 +163,8 @@ class Interactions:
 
         """
 
-        a_name = self.data.domain.attributes[a]
-        b_name = self.data.domain.attributes[b]
+        a_name = self.data.domain.attributes[a].name
+        b_name = self.data.domain.attributes[b].name
         ig_a = self.info_gains[a_name]  # We already have this info from initialization.
         ig_b = self.info_gains[b_name]
         # ig_ab = self.i(self.data.X[:, a], self.data.X[:, b],  self.data.Y) # Instead of computing everything again, we
@@ -189,9 +194,8 @@ class Interactions:
         Returns the Interaction objects of n most informative pairs of attributes.
         For this to work, interaction_matrix must be called first.
         """
-        if not self.int_M_called:
-            print("Call interaction_matrix first!")
-            return
+        if not self.all_pairs:
+            raise IndexError("Call interaction_matrix first!")
         if criteria == "total":
             self.all_pairs.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
             return self.all_pairs[:n]
