@@ -5,39 +5,34 @@ from orangecontrib.interactions.utils import *
 import timeit
 
 if __name__ == '__main__':
+    print("A script to mess around in and run tests.")
     #CORRECTNES TESTING
 
-    # d = load_artificial_data(3, 10, 1, 2)
-    # d = load_xor_data()
-    d = Orange.data.Table('zoo')
+    # d = load_artificial_data(5, 10000, 50, 2, 1000, 100, 20000)
+    # d = Orange.data.Table('zoo')
     # print(d)
     # d = Orange.data.Table('iris')
     # print(d.domain.class_var)
     # print(d.Y)
-    inter = Interactions(d)
-    int_M = inter.interaction_matrix()
-    top3 = inter.get_top_att(3, criteria="total")
-    for i in top3:
-        print(i.a_name, i.b_name)
-    # print(inter.h(inter.get_probs(inter.data.X[:,0])))
-    # print(inter.i(inter.data.X[:,0], inter.data.X[:, 1], inter.data.Y))
+    # inter = Interactions(d)
+
 
     #SPEED TESTING:
 
     # m = 1000000
     #
-    # d = load_artificial_data(5, m, 30, 10, 5000, 100)
-    # inter = Interactions(d, alpha=0)
+    # d = load_artificial_data(5, m, 50, 2, 1000, 100)
+    # inter = Interactions(d)
     #
-    # print(inter.data.domain.variables[0].values)
+    # print(len(inter.data.domain.variables[0].values))
     #
     # print("Testing for", m, "samples:")
     #
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0])
-    # print("Time get probs 1var:", timeit.timeit(wrapped, number=3) / 3)
+    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
+    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
     #
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:,0], inter.data.Y)
-    # print("Time get probs 2vars:", timeit.timeit(wrapped, number=3) / 3)
+    # print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
+
     #
     # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)
     # print("Time get probs 3vars:", timeit.timeit(wrapped, number=3) / 3)

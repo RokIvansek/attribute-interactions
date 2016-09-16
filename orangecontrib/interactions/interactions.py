@@ -58,11 +58,11 @@ class Interactions:
         discretizer.method = disc_method  # TODO: Is this OK? Method as input argument?
         self.data = discretizer(self.data)
         self.sparse = sp.issparse(self.data.X)  # Check for sparsity
-        if self.sparse: # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
+        if self.sparse:  # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
-        self.info_gains = {self.data.domain.attributes[i].name: self.i(self.data.X[:, i], self.data.Y)
-                           for i in range(self.n)}
+        self.info_gains = {self.data.domain.attributes[k].name: self.i(self.data.X[:, k], self.data.Y)
+                           for k in range(self.n)}
         self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
         self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
 
@@ -77,7 +77,7 @@ class Interactions:
             counts = np.concatenate((counts, [no_zeros]))  # adding the frequency of zeros
             uniques = np.concatenate((uniques, [0]))  # adding zero to uniques
         if with_counts:
-            return (counts, uniques)
+            return counts, uniques
         else:
             return uniques
 
@@ -110,20 +110,14 @@ class Interactions:
                 M = np.column_stack([x.toarray().flatten() for x in X])  # Get dense arrays and stack in a matrix
             else:
                 uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
-                M = np.column_stack((X))  # Stack the columns in a matrix.
+                M = np.column_stack(X)  # Stack the columns in a matrix.
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
-            # TODO: Consider getting k as product len(self.data.domain.variables[i].values) of data for speed-up.
-            # TODO: To do this method get_probs should except indices of attributes instead of the actual
-            # TODO: corresponding arrays. Doing it this way would get rid of np.unique and np.isnan calls in if clause.
-            # TODO: It is also not cool now because methods pass big arrays to each other. The cleanest way to change
-            # TODO: this would be to be able to access data with integers for instance possitive integers would be
-            # TODO: columns in X array and interger -1 Y array. Find out how to do this in Orange!!!
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
             # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
-            counts = np.concatenate((counts, np.zeros(k - len(counts)))) # Add the zero frequencies
+            counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
             # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
             probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
         return probs
@@ -180,13 +174,13 @@ class Interactions:
         # TODO: Since this method iterates trough all possible pairs of attributes, would it be wise to calculate
         # TODO: a running sort of some kind to later access the most informative pairs without having to sort again?
         int_M = np.zeros((self.n, self.n))
-        for i in range(self.n):  # Since this is a symetric matrix we just compute the lower triangle and then copy
-            for j in range(i+1):  # TODO: i(X,X,Y) > i(X,Y) because of additive smoothing, but this is a kind of
+        for k in range(self.n):  # Since this is a symetric matrix we just compute the lower triangle and then copy
+            for j in range(k+1):  # TODO: i(X,X,Y) > i(X,Y) because of additive smoothing, but this is a kind of
         # TODO: misinformation since an atrribute in combination with itself does not in fact provide more information.
         # TODO: Should diagonal elements be ommited then???
-                o = self.attribute_interactions(i, j)
-                int_M[i, j] = o.rel_ig_ab  # Store actual interaction info
-                self.all_pairs.append(o) # Stores the entire Interaction object in a list
+                o = self.attribute_interactions(k, j)
+                int_M[k, j] = o.rel_ig_ab  # Store actual interaction info
+                self.all_pairs.append(o)  # Stores the entire Interaction object in a list
         return Orange.misc.distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
 
     def get_top_att(self, n, criteria=["total", "interaction"]):
