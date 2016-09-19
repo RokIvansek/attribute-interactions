@@ -20,7 +20,7 @@ import shlex
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-# sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../orangecontrib/interactions'))
 
 # -- General configuration ------------------------------------------------
 
@@ -32,6 +32,7 @@ import shlex
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -50,9 +51,9 @@ source_parsers = {".md": "recommonmark.parser.CommonMarkParser"}
 master_doc = 'index'
 
 # General information about the project.
-project = 'Orange3 Example Add-on'
-copyright = '2015, Biolab'
-author = 'Biolab'
+project = 'Orange3 Interactions Add-on'
+copyright = '2016, Biolab'
+author = 'Rok Ivanšek'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -112,7 +113,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'nature'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -141,7 +142,7 @@ html_theme = 'nature'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['static']
+# html_static_path = ['static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -204,7 +205,7 @@ html_static_path = ['static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Orange3ExampleAdd-ondoc'
+htmlhelp_basename = 'Orange3InteractionsAdd-ondoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 

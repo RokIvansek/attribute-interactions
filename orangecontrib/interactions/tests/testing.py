@@ -19,19 +19,17 @@ if __name__ == '__main__':
 
     #SPEED TESTING:
 
-    # m = 1000000
-    #
-    # d = load_artificial_data(5, m, 50, 2, 1000, 100)
-    # inter = Interactions(d)
-    #
-    # print(len(inter.data.domain.variables[0].values))
-    #
-    # print("Testing for", m, "samples:")
-    #
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
-    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
-    #
-    # print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
+    m = 1000000
+
+    d = load_artificial_data(5, m, 50, 2, 1000, 100)
+    inter = Interactions(d)
+
+    print("Testing for", m, "samples:")
+
+    wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
+    print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+
+    print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
 
     #
     # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)

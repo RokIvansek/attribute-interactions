@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.sparse as sp
+from scipy.stats import itemfreq
 import Orange
+import time
 from orangecontrib.interactions.utils import powerset
 
 
@@ -94,7 +96,6 @@ class Interactions:
         -------
         A 1D numpy array of probabilities.
         """
-
         no_att = len(X)
         if no_att == 1:
             if self.sparse:
@@ -117,6 +118,7 @@ class Interactions:
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
             # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
+            # The above line is the bottleneck. It accounts for 60% of time consumption of method get_probs
             counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
             # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
             probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
@@ -124,6 +126,7 @@ class Interactions:
 
     def h(self, probs):
         """
+        Entropy of a given distribution.
 
         Parameters
         ----------
