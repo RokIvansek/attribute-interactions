@@ -9,27 +9,31 @@ if __name__ == '__main__':
     #CORRECTNES TESTING
 
     # d = load_artificial_data(5, 10000, 50, 2, 1000, 100, 20000)
-    # d = Orange.data.Table('zoo')
+    d = Orange.data.Table('zoo')
     # print(d)
     # d = Orange.data.Table('iris')
-    # print(d.domain.class_var)
-    # print(d.Y)
-    # inter = Interactions(d)
+    print(d.domain)
+    print(d.domain.class_var.values)
+    inter = Interactions(d)
+    # ent = inter.h(inter.get_probs(inter.data.X[:,1]))
+    # info_g = inter.i(inter.data.X[:, 1], inter.data.X[:, 2])
+    # print(type(info_g))
+    # print(type(ent))
 
 
     #SPEED TESTING:
 
-    m = 1000000
-
-    d = load_artificial_data(5, m, 50, 2, 1000, 100)
-    inter = Interactions(d)
-
-    print("Testing for", m, "samples:")
-
-    wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
-    print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
-
-    print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
+    # m = 1000000
+    #
+    # d = load_artificial_data(5, m, 50, 2, 1000, 100)
+    # inter = Interactions(d)
+    #
+    # print("Testing for", m, "samples:")
+    #
+    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
+    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    #
+    # print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
 
     #
     # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)
