@@ -17,6 +17,9 @@ addons:
             - liblapack-dev
             - gfortran
 
+notifications:
+  email: false
+
 install:
     # Update pip to be able to install wheel dependencies
     - pip install -U pip wheel

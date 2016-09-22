@@ -19,7 +19,11 @@ Tutorial
 
 This is a short tutorial on how to use the module :mod:`interactions`.
 
-First we load a dataset. The dataset can be discrete or continuous.
+First we import everything from the interactions module::
+
+   >>> from orangecontrib.interactions import *
+
+Second we load a dataset. The dataset can be discrete or continuous.
 In this case we choose the discrete dataset 'zoo' that comes with the Orange library::
 
    >>> d = Orange.data.Table("zoo")
