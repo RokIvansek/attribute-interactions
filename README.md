@@ -1,6 +1,8 @@
 Orange3 Interactions Add-on
 ===========================
 
+[![build: passing](https://img.shields.io/travis/RokIvansek/attribute-interactions.svg)](https://travis-ci.org/RokIvansek/attribute-interactions)
+
 This is be an Interactions add-on for [Orange3](http://orange.biolab.si). For now it extends Orange only in the scripting part.
 
 Installation
