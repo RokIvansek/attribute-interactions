@@ -7,9 +7,9 @@ from setuptools import setup, find_packages
 
 NAME = "Orange3 Interactions Add-on"
 
-VERSION = "0.0.3"
+VERSION = "0.0.1"
 
-DESCRIPTION = "Add-on containing example widgets"
+DESCRIPTION = "Add-on containing attribute interactions"
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.md')).read()
 
 LICENSE = "BSD"
