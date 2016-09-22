@@ -24,9 +24,18 @@ Documentation / widget help can be built by running
 from the doc directory. You need [sphinx](http://www.sphinx-doc.org/en/stable/index.html) to generate the docs. Once generated you can
 find them in the build directory.
 
+To run unittest, run
+
+    python3 -m unittest test_interactions
+
+from the orangecontrib/interactions/tests folder.
+
 Usage
 -----
 
 For usage look at the generated html doc pages. They contain a short turorial.
+
+Credits
+-------
 
 This work is part of a summer internship at the laboratory for Bioinformatics at FRI Ljubljana.

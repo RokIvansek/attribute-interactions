@@ -101,18 +101,16 @@ class InteractionsTests(unittest.TestCase):
     def test_interaction_matrix(self):
         d = load_xor_data()
         inter = Interactions(d, alpha=0)
-        int_M = inter.interaction_matrix().tolist()
-        self.assertEqual(int_M, [[0.0, -1.0], [-1.0, 0.0]])
+        inter.interaction_matrix()
+        int_M = inter.int_matrix.tolist()
+        self.assertEqual(int_M, [[0.0, 1.0], [1.0, 0.0]])
 
     def test_top_attribute_interactions(self):
         d = Orange.data.Table('zoo')
         inter = Interactions(d)
-        int_M = inter.interaction_matrix()
-        top3 = inter.get_top_att(3, criteria="total")
-        self.assertEqual(top3[0].a_name, "legs")
-        self.assertEqual(top3[0].b_name, "milk")
-        self.assertEqual(top3[1].a_name, "legs")
-        self.assertEqual(top3[1].b_name, "eggs")
-        self.assertEqual(top3[2].a_name, "legs")
-        self.assertEqual(top3[2].b_name, "hair")
+        inter.interaction_matrix()
+        top3 = inter.get_top_att(3)
+        self.assertEqual({top3[0].a_name, top3[0].b_name},  {"legs", "milk"})
+        self.assertEqual({top3[1].a_name, top3[1].b_name}, {"legs", "eggs"})
+        self.assertEqual({top3[2].a_name, top3[2].b_name}, {"legs", "hair"})
 

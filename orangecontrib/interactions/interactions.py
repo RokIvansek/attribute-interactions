@@ -2,7 +2,6 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.stats import itemfreq
 import Orange
-import time
 from orangecontrib.interactions.utils import powerset
 
 
@@ -81,7 +80,6 @@ class Interactions:
         self.info_gains = {self.data.domain.attributes[k].name: self.i(self.data.X[:, k], self.data.Y)
                            for k in range(self.n)}
         self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
-        self.all_pairs = [] # Here we will store the Interaction objects for all possible pairs of attributes.
 
     def get_counts_sparse(self, x, with_counts=True):
         """Handles NaNs and counts the values in a 1D sparse array."""
@@ -180,6 +178,7 @@ class Interactions:
 
     def attribute_interactions(self, a, b):
         """
+        Computes the absolute total info gain for attributes a and b. Generates an Interaction object.
 
         Parameters
         ----------
@@ -208,53 +207,45 @@ class Interactions:
 
     def interaction_matrix(self):
         """
-        Computes the relative total information gain for all possible pairs of attributes.
-
-        Returns
-        -------
-        Orange.misc.distmatrix.DistMatrix
-            A symetric matrix containing all the interaction info for all the pairs of attributes.
-
+        Computes a symetric matrix containing the relative total information gain for all possible pairs of attributes.
         """
+
         self.int_M_called = True
-        # TODO: Since this method iterates trough all possible pairs of attributes, would it be wise to calculate
-        # TODO: a running sort of some kind to later access the most informative pairs without having to sort again?
         int_M = np.zeros((self.n, self.n))
         for k in range(self.n):  # Since this is a symetric matrix we just compute the lower triangle and then copy
-            for j in range(k+1):  # TODO: i(X,X,Y) > i(X,Y) because of additive smoothing, but this is a kind of
-        # TODO: misinformation since an atrribute in combination with itself does not in fact provide more information.
-        # TODO: Should diagonal elements be ommited then???
+            for j in range(k+1):
                 o = self.attribute_interactions(k, j)
-                int_M[k, j] = o.rel_ig_ab  # Store total information gain.
-                self.all_pairs.append(o)  # Stores the entire Interaction object in a list
-        return Orange.misc.distmatrix.DistMatrix(int_M + int_M.T - np.diag(int_M.diagonal()))
+                int_M[k, j] = o.rel_total_ig_ab  # Store total information gain.
+                int_M[j, k] = o.rel_total_ig_ab
+        for k in range(self.n):
+            int_M[k, k] = self.info_gains[self.data.domain.attributes[k].name]
+        self.int_matrix = Orange.misc.distmatrix.DistMatrix(int_M)
 
-    def get_top_att(self, n, criteria=["total", "interaction"]):
+    def get_top_att(self, n):
         """
-        Returns the Interaction objects of n most informative pairs of attributes.
+        Computes the Interaction objects for n most informative pairs of attributes.
         For this to work, ``interaction_matrix`` must be called first.
+        It uses a partial sort and then a full sort on the remaining n elements to get the indices of attributes.
 
 
         Parameters
         ----------
         n
             The number of attribute pairs we wish to get.
-        criteria
-            Either sort by the total information gain ('total') or by the interaction info gain ('interaction').
 
         Returns
         -------
         list
             A list of Interaction objects.
         """
-        if not self.all_pairs:
+        if not self.int_M_called:
             raise IndexError("Call interaction_matrix first!")
-        if criteria == "total":
-            self.all_pairs.sort(key=lambda x: x.rel_total_ig_ab, reverse=True)
-            return self.all_pairs[:n]
-        if criteria == "interaction":
-            self.all_pairs.sort(key=lambda x: x.rel_ig_ab)
-            return self.all_pairs[:n]
+        flat_indices = np.argpartition(np.tril(-self.int_matrix, -1).ravel(), n - 1)[:n]
+        row_indices, col_indices = np.unravel_index(flat_indices, self.int_matrix.shape)
+        min_elements = self.int_matrix[row_indices, col_indices]
+        min_elements_order = np.argsort(-min_elements)
+        row_indices, col_indices = row_indices[min_elements_order], col_indices[min_elements_order]
+        return [self.attribute_interactions(row_indices[k], col_indices[k]) for k in range(n)]
 
 
 if __name__ == '__main__':
@@ -262,18 +253,10 @@ if __name__ == '__main__':
     d = Orange.data.Table("zoo") # Load  discrete dataset.
     # d = Orange.data.Table("iris") # Load continuous dataset.
     inter = Interactions(d) # Initialize Interactions object.
-    # Since info gain for single attributes is computed at initialization we can already look at it.
     # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
-    # We get a symmetric matrix, but the same info is also stored in a list internally.
-    interacts_M = inter.interaction_matrix()
-    for i in range(5):
-        key = inter.data.domain.attributes[i].name
-        print(key, ":", inter.info_gains[key])
-    print("*****************************************************************")
+    inter.interaction_matrix()
     # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    best_total = inter.get_top_att(3, criteria="total")
+    best_total = inter.get_top_att(3)
     for i in best_total: # Interaction objects also print nicely.
         print(i)
         print("*****************************************************************")
-    best_interaction = inter.get_top_att(3, criteria="interaction")
-    print(best_interaction[0])

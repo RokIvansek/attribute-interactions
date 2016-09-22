@@ -38,60 +38,23 @@ When creating the object we can choose 2 optional parameters:
 Continuous data will be discretized using the **disc_method** discretization method.
 For more information on this two parameters take a look at the section `Reference`_.
 
-The information gain of all individual attributes is computed at the initialization of the object,
-it is stored in the dictionary variable called **info_gains**. We can easily take a look at the
-information gain of the first five attributes in our dataset::
+To get the interactions between the attributes we use the :func:`interactions.Interactions.interaction_matrix` method::
 
-   >>> for i in range(5):
-   >>>    key = inter.data.domain.attributes[i].name
-   >>>    print(key, ":", inter.info_gains[key])
+   >>> inter.interaction_matrix()
 
-The first few rows of the output look like this::
-
-   >>>
-   hair : 0.784187779941
-   feathers : 0.709519500315
-   eggs : 0.824152632249
-   milk : 0.965778845947
-   airborne : 0.46439873855
-
-
-To see the actual percentage of the class variable each attribute explains, we need to divide the info gains
-with the class entropy. The class entropy was also computed at the initialisation and is stored in the variable
-**class_entropy**::
-
-   >>> for i in range(5):
-   >>>    key = inter.data.domain.attributes[i].name
-   >>>    print(key, ":", inter.info_gains[key]/inter.class_entropy)
-
-Now the values make more sense, since they are relative to the entropy of the class::
-
-   >>>
-   hair : 0.327955854597
-   feathers : 0.296728768327
-   eggs : 0.344669590296
-   milk : 0.403899212505
-   airborne : 0.194216601012
-
-To get the interactions between attributes we use the :func:`interactions.Interactions.interaction_matrix` method::
-
-   >>> interacts_M = inter.interaction_matrix()
-
-The mentioned method returns an object of the type **Orange.misc.distmatrix.DistMatrix**, the values stored
-in this matrix are the relative information gains of all pairs of attributes. Besides this output, the method also stores
-all the interactions in a list of :class:`interactions.Interaction` objects called **all_pairs**. These objects contain all
-of the interaction information of the chosen two attributes: the individual info gains, the combined info gain,
-the mutual information, ...
+The mentioned method stores interactions in an object of the type **Orange.misc.distmatrix.DistMatrix** internaly, the values stored
+in this matrix are the total relative information gains of all pairs of attributes.
 
 After the :func:`interactions.Interactions.interaction_matrix` method has been called, we can use the
 :func:`interactions.Interactions.get_top_att` method to look at the most interesting interactions between attributes in
 our dataset::
 
-   >>> best_total = inter.get_top_att(3, criteria="total")
+   >>> best_total = inter.get_top_att(3)
 
-In the line above we store a subset of **all_pairs** in a new variable **best_total**. This are the top three pairs of
-attributes that have the highest information gain. Because the :class:`interactions.Interaction` objects print nicely.
-We can simply use::
+In the line above the :class:`interaction.Interaction` objects for the top three pairs of attributes are created.
+The **Interaction** object contains all of the interaction information for the chosen pair of attributes:
+the individual info gains, the combined info gain, the mutual information, ...
+Because the :class:`interactions.Interaction` objects print nicely, we can simply use::
 
    >>> print(best_total[0])
    Interaction beetween attributes legs and milk.
@@ -101,18 +64,6 @@ We can simply use::
    Total relative info gain from attributes and their combination: 0.791707294843
 
 to look at the interaction information about the best pair of attributes in our dataset.
-
-Another kind of attribute pairs that are interesting, are the ones that provide additional gain, that is
-not present when the attributes are looked at separately. This are the attributes that have a negative mutual information.
-We can find these attributes with the same method as above, just that this time, we specifiy a different criteria::
-
-   >>> best_interaction = inter.get_top_att(3, criteria="interaction")
-   >>> print(best_interaction[0])
-   Interaction beetween attributes catsize and predator:
-   Relative info gain for attribute catsize: 0.127748953466
-   Relative info gain for attribute predator: 0.0386518299126
-   Relative info gain for both attributes together: -0.0329988599794
-   Total relative info gain from attributes and their combination: 0.199399643358
 
 
 Reference

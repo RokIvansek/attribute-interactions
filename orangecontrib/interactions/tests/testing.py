@@ -3,18 +3,31 @@ import Orange
 from orangecontrib.interactions.interactions import *
 from orangecontrib.interactions.utils import *
 import timeit
+import time
 
 if __name__ == '__main__':
     print("A script to mess around in and run tests.")
+
+    a = np.random.random((1000, 1000))
+    n = 100
+
+    start_a = time.clock()
+    flat_indices_a = np.argpartition(a.ravel(), n-1)[:n]
+    stop_a = time.clock()
+    print("Time of np:", stop_a -start_a)
+    elements_a = np.partition(a.ravel(), n)[:n]
+    print(flat_indices_a)
+    print(elements_a)
+
     #CORRECTNES TESTING
 
     # d = load_artificial_data(5, 10000, 50, 2, 1000, 100, 20000)
-    d = Orange.data.Table('zoo')
+    # d = Orange.data.Table('zoo')
     # print(d)
     # d = Orange.data.Table('iris')
-    print(d.domain)
-    print(d.domain.class_var.values)
-    inter = Interactions(d)
+    # print(d.domain)
+    # print(d.domain.class_var.values)
+    # inter = Interactions(d)
     # ent = inter.h(inter.get_probs(inter.data.X[:,1]))
     # info_g = inter.i(inter.data.X[:, 1], inter.data.X[:, 2])
     # print(type(info_g))
