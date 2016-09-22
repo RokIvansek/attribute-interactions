@@ -11,6 +11,7 @@ VERSION = "0.0.1"
 
 DESCRIPTION = "Add-on containing attribute interactions"
 LONG_DESCRIPTION = open(path.join(path.dirname(__file__), 'README.md')).read()
+URL = "https://github.com/RokIvansek/attribute-interactions"
 
 LICENSE = "BSD"
 
@@ -23,7 +24,6 @@ KEYWORDS = (
 PACKAGES = find_packages()
 
 PACKAGE_DATA = {
-    'orangecontrib.interactions': ['tutorials/*.ows'],
     'orangecontrib.interactions.widgets': ['icons/*'],
 }
 
@@ -39,15 +39,8 @@ ENTRY_POINTS = {
     # Entry points that marks this package as an orange add-on. If set, addon will
     # be shown in the add-ons manager even if not published on PyPi.
     'orange3.addon': (
-        'example = orangecontrib.interactions',
+        'interactions = orangecontrib.interactions',
     ),
-    # Entry point used to specify packages containing tutorials accessible
-    # from welcome screen. Tutorials are saved Orange Workflows (.ows files).
-    'orange.widgets.tutorials': (
-        # Syntax: any_text = path.to.package.containing.tutorials
-        'exampletutorials = orangecontrib.interactions.tutorials',
-    ),
-
     # Entry point used to specify packages containing widgets.
     'orange.widgets': (
         # Syntax: category name = path.to.package.containing.widgets
