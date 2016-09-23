@@ -176,9 +176,9 @@ class Interactions:
             raise TypeError("Provide at least two arguments!")
         return np.sum([((-1) ** (len(subset) - 1)) * self.h(self.get_probs(*subset)) for subset in powerset(X)])
 
-    def attribute_interactions(self, a, b):
+    def attribute_interactions(self, a, b, total_rel_ig_ab=None):
         """
-        Computes the absolute total info gain for attributes a and b. Generates an Interaction object.
+        If not given, computes the absolute total info gain for attributes a and b. Generates an Interaction object.
 
         Parameters
         ----------
@@ -186,6 +186,8 @@ class Interactions:
             Attribute index.
         b
             Attribute index.
+        total_rel_ig_ab
+            Total relative info gain of attributes.
 
         Returns
         -------
@@ -198,10 +200,11 @@ class Interactions:
         b_name = self.data.domain.attributes[b].name
         ig_a = self.info_gains[a_name]  # We already have this info from initialization.
         ig_b = self.info_gains[b_name]
-        # ig_ab = self.i(self.data.X[:, a], self.data.X[:, b],  self.data.Y) # Instead of computing everything again, we
-        # can use what we already have and just add what we need I(A:B:Y) = I(A:Y) + I(B:Y) - H(Y) - H(A:B) + H(A:B:Y)
-        ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b]))) + \
-                self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b], self.data.Y))
+        if not total_rel_ig_ab:
+            ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b]))) + \
+                    self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b], self.data.Y))
+        else:
+            ig_ab = ig_a + ig_b - total_rel_ig_ab * self.class_entropy
         inter = Interaction(a_name, b_name, ig_a, ig_b, ig_ab, self.class_entropy)
         return inter
 
@@ -212,7 +215,7 @@ class Interactions:
 
         self.int_M_called = True
         int_M = np.zeros((self.n, self.n))
-        for k in range(self.n):  # Since this is a symetric matrix we just compute the lower triangle and then copy
+        for k in range(self.n):
             for j in range(k+1):
                 o = self.attribute_interactions(k, j)
                 int_M[k, j] = o.rel_total_ig_ab  # Store total information gain.
@@ -242,10 +245,10 @@ class Interactions:
             raise IndexError("Call interaction_matrix first!")
         flat_indices = np.argpartition(np.tril(-self.int_matrix, -1).ravel(), n - 1)[:n]
         row_indices, col_indices = np.unravel_index(flat_indices, self.int_matrix.shape)
-        min_elements = self.int_matrix[row_indices, col_indices]
-        min_elements_order = np.argsort(-min_elements)
+        min_elements_order = np.argsort(-self.int_matrix[row_indices, col_indices])
         row_indices, col_indices = row_indices[min_elements_order], col_indices[min_elements_order]
-        return [self.attribute_interactions(row_indices[k], col_indices[k]) for k in range(n)]
+        return [self.attribute_interactions(row_indices[k], col_indices[k],
+                                            self.int_matrix[row_indices[k], col_indices[k]]) for k in range(n)]
 
 
 if __name__ == '__main__':
