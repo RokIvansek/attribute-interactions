@@ -4,47 +4,66 @@ from orangecontrib.interactions.interactions import *
 from orangecontrib.interactions.utils import *
 import timeit
 import time
+from collections import Counter
+
+def whole_process(s, a, top):
+    d = load_artificial_data(s, a, 20, 5)
+    inter = Interactions(d)
+    inter.interaction_matrix()
+    best = inter.get_top_att(top)
+    return best
 
 if __name__ == '__main__':
-    print("A script to mess around in and run tests.")
-
-    a = np.random.random((1000, 1000))
-    n = 100
-
-    start_a = time.clock()
-    flat_indices_a = np.argpartition(a.ravel(), n-1)[:n]
-    stop_a = time.clock()
-    print("Time of np:", stop_a -start_a)
-    elements_a = np.partition(a.ravel(), n)[:n]
-    print(flat_indices_a)
-    print(elements_a)
-
-    #CORRECTNES TESTING
-
-    # d = load_artificial_data(5, 10000, 50, 2, 1000, 100, 20000)
-    # d = Orange.data.Table('zoo')
-    # print(d)
-    # d = Orange.data.Table('iris')
-    # print(d.domain)
-    # print(d.domain.class_var.values)
-    # inter = Interactions(d)
-    # ent = inter.h(inter.get_probs(inter.data.X[:,1]))
-    # info_g = inter.i(inter.data.X[:, 1], inter.data.X[:, 2])
-    # print(type(info_g))
-    # print(type(ent))
-
+    # print("A script to mess around in and run tests.")
 
     #SPEED TESTING:
 
-    # m = 1000000
+    m = 100000 # number of samples
+    n = 50 # number of attributes
+    v = 20 # number of unique attribute values
+    c = 2 # number of unique class values
+
+    d = load_artificial_data(n, m, v, c)
+    inter = Interactions(d, alpha=0)
+
+    print("Testing for", m, "samples,", n, "attributes:")
+
+    # start_0 = time.clock()
+    # _, uni_0 = np.unique(inter.data.X[:, 0], return_counts=True)
+    # stop_0 = time.clock()
+    # print("np.unique time:", stop_0 - start_0)
+    # print(uni_0)
     #
-    # d = load_artificial_data(5, m, 50, 2, 1000, 100)
-    # inter = Interactions(d)
+    # start_1 = time.clock()
+    # uni_1 = np.bincount(inter.data.X[:, 0].astype(int))
+    # stop_1 = time.clock()
+    # print("bincount time:", stop_1 - start_1)
+    # print(uni_1)
+
+    start_0 = time.clock()
+    probs_0 = np.histogram2d(inter.data.X[:, 0], inter.data.X[:, 1], bins=[v, v], range=[[0, v], [0, v]])[0].flatten() / m
+    stop_0 = time.clock()
+    print("np.unique time:", stop_0 - start_0)
+    print(inter.h(probs_0))
+
+    start_1 = time.clock()
+    probs_1 = inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1])
+    stop_1 = time.clock()
+    print("histogram time:", stop_1 - start_1)
+    print(inter.h(probs_1))
+
+    # probs_0 = np.histogram2d(inter.data.X[:, 0], inter.data.X[:, 1], bins=[v, v], range=[[0, v], [0, v]])[0].flatten()/m
+    # print(probs_0)
     #
-    # print("Testing for", m, "samples:")
+    # probs_1 = inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1])
+    # print(probs_1)
+
+    # wrapped = wrapper(inter.interaction_matrix)
+    # print("Time interaction_matrix:", timeit.timeit(wrapped, number=3) / 3)
     #
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2])
-    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    # wrapped = wrapper(inter.get_top_att, 3)
+    # print("Time get_top_att:", timeit.timeit(wrapped, number=3) / 3)
+
     #
     # print(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.X[:, 2]))
 
@@ -54,24 +73,3 @@ if __name__ == '__main__':
     #
     # wrapped = wrapper(Orange.statistics.contingency.Discrete, d, 0)
     # print("Time Orange contingency:", timeit.timeit(wrapped, number=3) / 3)
-
-    # Testing
-    # for 1000000 samples:
-    #     Time
-    #     get
-    #     probs
-    #     1
-    #     var: 0.05119527799994709
-    # Time
-    # get
-    # probs
-    # 2
-    # vars: 0.42950214466660935
-    # Time
-    # get
-    # probs
-    # 3
-    # vars: 0.6087319959998846
-    # Time
-    # Orange
-    # contingency: 0.07875381766659

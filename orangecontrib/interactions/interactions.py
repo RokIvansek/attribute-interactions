@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.stats import itemfreq
 import Orange
-from orangecontrib.interactions.utils import powerset
+from orangecontrib.interactions.utils import powerset, load_artificial_data
 
 
 class Interaction:
@@ -77,9 +77,10 @@ class Interactions:
         if self.sparse:  # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
-        self.info_gains = {self.data.domain.attributes[k].name: self.i(self.data.X[:, k], self.data.Y)
-                           for k in range(self.n)}
-        self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
+        # self.info_gains = {self.data.domain.attributes[k].name: self.i(self.data.X[:, k], self.data.Y)
+        #                    for k in range(self.n)}
+        # self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
+        self.int_M_called = False
 
     def get_counts_sparse(self, x, with_counts=True):
         """Handles NaNs and counts the values in a 1D sparse array."""
@@ -96,6 +97,7 @@ class Interactions:
         else:
             return uniques
 
+    @profile
     def get_probs(self, *X):
         """
         Counts the frequencies of samples (rows) in a given n dimensional array ``*X`` and
@@ -112,6 +114,7 @@ class Interactions:
             A 1D numpy array of probabilities.
         """
         no_att = len(X)
+        print(no_att)
         if no_att == 1:
             if self.sparse:
                 counts, uniques = self.get_counts_sparse(X[0])
@@ -208,6 +211,7 @@ class Interactions:
         inter = Interaction(a_name, b_name, ig_a, ig_b, ig_ab, self.class_entropy)
         return inter
 
+    # @profile
     def interaction_matrix(self):
         """
         Computes a symetric matrix containing the relative total information gain for all possible pairs of attributes.
@@ -224,6 +228,7 @@ class Interactions:
             int_M[k, k] = self.info_gains[self.data.domain.attributes[k].name]
         self.int_matrix = Orange.misc.distmatrix.DistMatrix(int_M)
 
+    # @profile
     def get_top_att(self, n):
         """
         Computes the Interaction objects for n most informative pairs of attributes.
@@ -252,14 +257,28 @@ class Interactions:
 
 
 if __name__ == '__main__':
-    # Example on how to use the class interaction:
-    d = Orange.data.Table("zoo") # Load  discrete dataset.
-    # d = Orange.data.Table("iris") # Load continuous dataset.
-    inter = Interactions(d) # Initialize Interactions object.
-    # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
-    inter.interaction_matrix()
-    # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
-    best_total = inter.get_top_att(3)
-    for i in best_total: # Interaction objects also print nicely.
-        print(i)
-        print("*****************************************************************")
+    # # Example on how to use the class interaction:
+    # d = Orange.data.Table("zoo") # Load  discrete dataset.
+    # # d = Orange.data.Table("iris") # Load continuous dataset.
+    # inter = Interactions(d) # Initialize Interactions object.
+    # # To compute the interactions of all pairs of attributes we can use method interaction_matrix.
+    # inter.interaction_matrix()
+    # # We can get the 3 combinations that provide the most info about the class variable by using get_top_att
+    # best_total = inter.get_top_att(3)
+    # for i in best_total: # Interaction objects also print nicely.
+    #     print(i)
+    #     print("*****************************************************************")
+
+    #PROFILING
+    m = 100000
+    n = 20
+
+    d = load_artificial_data(n, m, 50, 2)
+    inter = Interactions(d)
+
+    print("Testing for", m, "samples,", n, "attributes:")
+
+    inter.get_probs(inter.data.X[:, 0])
+    # inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)
+    # inter.interaction_matrix()
+    # inter.get_top_att(3)
