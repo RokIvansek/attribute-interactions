@@ -44,29 +44,23 @@ def load_artificial_data(no_att, no_samples, no_unique_values, no_classes=False,
     return data
 
 
-def load_mushrooms_data(no_samples=False, random_nans_no=False, sparse=False):
-    shrooms_data = np.array(np.genfromtxt("../datasets/agaricus-lepiota.data", delimiter=",", dtype=str))
+def load_mushrooms_data():
+    shrooms_data = np.array(np.genfromtxt("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data", delimiter=",", dtype=str))
     # Convert mushroom data from strings to integers
+    names = ['cap-shape', 'cap-surface', 'cap-color', 'bruises', 'odor', 'gill-attachment', 'gill-spacing', 'gill-size',
+            'gill-color', 'stalk-shape', 'stalk-root', 'stalk-surface-above-ring', 'stalk-surface-below-ring',
+             'stalk-color-above-ring', 'stalk-color-below-ring', 'veil-type', 'veil-color', 'ring-number', 'ring-type',
+             'spore-print-color', 'population', 'habitat']
     for i in range(len(shrooms_data[0, :])):
         u, ints = np.unique(shrooms_data[:, i], return_inverse=True)
         shrooms_data[:, i] = ints
     shrooms_data = shrooms_data.astype(np.float32)
-    if random_nans_no:
-        np.put(shrooms_data, np.random.choice(range(shrooms_data.shape[0]*shrooms_data.shape[1]), random_nans_no, replace=False), np.nan)
-    # print(np.sum(np.isnan(shrooms_data)))
-    if no_samples:
-        #sample a smaller subset of mushrooms data
-        np.random.shuffle(shrooms_data)
-        shrooms_data = shrooms_data[:no_samples,:]
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
-    if sparse:
-        X_shrooms = sp.csr_matrix(X_shrooms)
-    domain = Orange.data.Domain([Orange.data.DiscreteVariable("attribute" + str(i)) for i in range(1,X_shrooms.shape[1]+1)],
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable(names[i-1]) for i in range(1,X_shrooms.shape[1]+1)],
                                 Orange.data.DiscreteVariable("edible"))
     data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
     return data
-
 
 # A wrapper to use with timeit module to time functions.
 def wrapper(func, *args, **kwargs):

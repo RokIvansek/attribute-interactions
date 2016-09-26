@@ -1,8 +1,26 @@
 from orangecontrib.interactions.interactions import Interaction, Interactions
-from orangecontrib.interactions.utils import load_artificial_data
 from Orange.widgets import gui, settings, widget, highcharts
-from Orange.data import Table
+import Orange
+import numpy as np
 
+def load_mushrooms_data():
+    # shrooms_data = np.array(np.genfromtxt("../datasets/agaricus-lepiota.data", delimiter=",", dtype=str))
+    shrooms_data = np.array(np.genfromtxt("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data", delimiter=",", dtype=str))
+    # Convert mushroom data from strings to integers
+    names = ['cap-shape', 'cap-surface', 'cap-color', 'bruises', 'odor', 'gill-attachment', 'gill-spacing', 'gill-size',
+            'gill-color', 'stalk-shape', 'stalk-root', 'stalk-surface-above-ring', 'stalk-surface-below-ring',
+             'stalk-color-above-ring', 'stalk-color-below-ring', 'veil-type', 'veil-color', 'ring-number', 'ring-type',
+             'spore-print-color', 'population', 'habitat']
+    for i in range(len(shrooms_data[0, :])):
+        u, ints = np.unique(shrooms_data[:, i], return_inverse=True)
+        shrooms_data[:, i] = ints
+    shrooms_data = shrooms_data.astype(np.float32)
+    Y_shrooms = shrooms_data[:, 0]
+    X_shrooms = shrooms_data[:, 1:]
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable(names[i-1]) for i in range(1,X_shrooms.shape[1]+1)],
+                                Orange.data.DiscreteVariable("edible"))
+    data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
+    return data
 
 class StackedBar(highcharts.Highchart):
     """
@@ -36,6 +54,7 @@ class OWInteractionGraph(widget.OWWidget):
                                             plotOptions_series_stacking='normal',
                                             yAxis_min=0,
                                             yAxis_max=1,
+                                            yAxis_title_text='Relative information gain',
                                             tooltip_shared=False)
         # Just render an empty chart so it shows a nice 'No data to display'
         # warning
@@ -88,10 +107,11 @@ def main():
     app = QApplication([])
     ow = OWInteractionGraph()
 
-    d = Table('zoo')
+    # d = Orange.data.Table('zoo')
+    d = load_mushrooms_data()
     inter = Interactions(d)
     inter.interaction_matrix()
-    int_object = inter.get_top_att(10)
+    int_object = inter.get_top_att(5)
 
     ow.set_interaction(int_object)
     ow.show()
