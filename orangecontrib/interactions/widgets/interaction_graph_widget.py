@@ -1,4 +1,5 @@
 from orangecontrib.interactions.interactions import Interaction, Interactions
+from orangecontrib.interactions.utils import load_artificial_data
 from Orange.widgets import gui, settings, widget, highcharts
 from Orange.data import Table
 
@@ -87,7 +88,7 @@ def main():
     app = QApplication([])
     ow = OWInteractionGraph()
 
-    d = Table("zoo")
+    d = Table('zoo')
     inter = Interactions(d)
     inter.interaction_matrix()
     int_object = inter.get_top_att(10)

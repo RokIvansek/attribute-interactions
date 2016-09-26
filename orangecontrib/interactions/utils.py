@@ -44,6 +44,30 @@ def load_artificial_data(no_att, no_samples, no_unique_values, no_classes=False,
     return data
 
 
+def load_mushrooms_data(no_samples=False, random_nans_no=False, sparse=False):
+    shrooms_data = np.array(np.genfromtxt("../datasets/agaricus-lepiota.data", delimiter=",", dtype=str))
+    # Convert mushroom data from strings to integers
+    for i in range(len(shrooms_data[0, :])):
+        u, ints = np.unique(shrooms_data[:, i], return_inverse=True)
+        shrooms_data[:, i] = ints
+    shrooms_data = shrooms_data.astype(np.float32)
+    if random_nans_no:
+        np.put(shrooms_data, np.random.choice(range(shrooms_data.shape[0]*shrooms_data.shape[1]), random_nans_no, replace=False), np.nan)
+    # print(np.sum(np.isnan(shrooms_data)))
+    if no_samples:
+        #sample a smaller subset of mushrooms data
+        np.random.shuffle(shrooms_data)
+        shrooms_data = shrooms_data[:no_samples,:]
+    Y_shrooms = shrooms_data[:, 0]
+    X_shrooms = shrooms_data[:, 1:]
+    if sparse:
+        X_shrooms = sp.csr_matrix(X_shrooms)
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable("attribute" + str(i)) for i in range(1,X_shrooms.shape[1]+1)],
+                                Orange.data.DiscreteVariable("edible"))
+    data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
+    return data
+
+
 # A wrapper to use with timeit module to time functions.
 def wrapper(func, *args, **kwargs):
     def wrapped():
