@@ -13,7 +13,7 @@ class StackedBar(highcharts.Highchart):
 
 
 class OWInteractionGraph(widget.OWWidget):
-    """Example stacked bar plot visualization using Highcharts"""
+    """Interactions visualization using Highcharts"""
     name = 'An interaction graph'
     description = 'An example stacked bar plot visualization using Highcharts.'
     icon = "icons/mywidget.svg"
@@ -25,13 +25,13 @@ class OWInteractionGraph(widget.OWWidget):
 
     def __init__(self):
         super().__init__()
-        self.interaction_data = None
+        self.data = None
 
         # Create an instance of StackedBar. Initial Highcharts configuration
         # can be passed as '_'-delimited keyword arguments. See Highcharts
         # class docstrings and Highcharts API documentation for more info and
         # usage examples.
-        self.interaction_graph = StackedBar(title_text='Interaction graph example',
+        self.interaction_graph = StackedBar(title_text='Interactions graph',
                                             plotOptions_series_stacking='normal',
                                             yAxis_min=0,
                                             yAxis_max=1,
@@ -42,21 +42,43 @@ class OWInteractionGraph(widget.OWWidget):
 
         self.mainArea.layout().addWidget(self.interaction_graph)
 
-    def set_interaction(self, inter_object):
-        self.interaction_data = inter_object
-        ab = self.interaction_data.rel_ig_ab
-        if ab < 0:
-            a = self.interaction_data.rel_ig_a
-            b = self.interaction_data.rel_ig_b
-            ab = -ab
-        else:
-            a = self.interaction_data.rel_ig_a - ab
-            b = self.interaction_data.rel_ig_b - ab
-            ab = self.interaction_data.rel_ig_ab
-        options = dict(series=[])
-        options['series'].append(dict(data=[a], name=self.interaction_data.a_name + ' info gain'))
-        options['series'].append(dict(data=[ab], name='attribute interaction'))
-        options['series'].append(dict(data=[b], name=self.interaction_data.b_name + ' info gain'))
+    def set_interaction(self, interactions_list):
+        self.data = interactions_list
+        categories_left = []
+        categories_right = []
+        info_gains_left = []
+        info_gains_right = []
+        interaction_gains = []
+        interaction_colors = []
+        for o in self.data:
+            categories_left.append(o.a_name)
+            categories_right.append(o.b_name)
+            ab = o.rel_ig_ab
+            if ab < 0:
+                a = o.rel_ig_a
+                b = o.rel_ig_b
+                ab = -ab
+                interaction_colors.append('green')
+            else:
+                a = o.rel_ig_a - ab
+                b = o.rel_ig_b - ab
+                interaction_colors.append('red')
+            info_gains_left.append(b)
+            interaction_gains.append(ab)
+            info_gains_right.append(a)
+        options = dict(series=[], xAxis=[])
+        options['series'].append(dict(data=info_gains_left, name='Isolated attribute info gain', color='blue'))
+        options['series'].append(dict(data=interaction_gains,
+                                      name='Interaction info gain',
+                                      colorByPoint=True,
+                                      colors = interaction_colors))
+        options['series'].append(dict(data=info_gains_right, name='Isolated attribute info gain', color='blue'))
+        options['xAxis'].append(dict(categories=categories_left,
+                                     labels = dict(step=1)))
+        options['xAxis'].append(dict(categories=categories_right,
+                                     opposite=True,
+                                     linkedTo=0,
+                                     labels = dict(step=1)))
         self.interaction_graph.chart(options)
 
 
@@ -68,7 +90,7 @@ def main():
     d = Table("zoo")
     inter = Interactions(d)
     inter.interaction_matrix()
-    int_object = inter.get_top_att(1)[0]
+    int_object = inter.get_top_att(10)
 
     ow.set_interaction(int_object)
     ow.show()
