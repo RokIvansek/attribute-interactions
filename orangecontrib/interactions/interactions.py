@@ -113,7 +113,6 @@ class Interactions:
             A 1D numpy array of probabilities.
         """
         no_att = len(X)
-        print(no_att)
         if no_att == 1:
             if self.sparse:
                 counts, uniques = self.get_counts_sparse(X[0])
