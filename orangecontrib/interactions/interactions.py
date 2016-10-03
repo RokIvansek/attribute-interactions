@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.sparse as sp
-from scipy.stats import itemfreq
 import Orange
 from orangecontrib.interactions.utils import powerset, load_artificial_data
 
