@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse as sp
 import Orange
+from Orange.statistics.util import bincount, contingency
 from orangecontrib.interactions.utils import powerset, load_artificial_data
 
 
@@ -98,13 +99,13 @@ class Interactions:
 
     def get_probs(self, *X):
         """
-        Counts the frequencies of samples (rows) in a given n dimensional array ``*X`` and
+        Counts the frequencies of samples of given variables ``*vars`` and
         calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
 
         Parameters
         ----------
         *X
-            A sequence of 1D arrays (columns/attributes), can be sparse.
+            A sequence of Orange discrete variables.
 
         Returns
         -------
@@ -127,6 +128,48 @@ class Interactions:
             else:
                 uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
                 M = np.column_stack(X)  # Stack the columns in a matrix.
+            k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
+            M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
+            m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
+            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
+            # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
+            _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
+            # The above line is the bottleneck. It accounts for 60% of time consumption of method get_probs
+            counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
+            # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
+            probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
+        return probs
+
+    def get_probs_new(self, *vars):
+        """
+        Counts the frequencies of samples of given variables ``*vars`` and
+        calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
+
+        Parameters
+        ----------
+        *X
+            A sequence of Orange discrete variables.
+
+        Returns
+        -------
+        numpy.ndarray
+            A 1D numpy array of probabilities.
+        """
+        no_att = len(vars)
+        if no_att == 1:
+            if self.sparse:
+                counts, uniques = self.get_counts_sparse(vars[0])
+                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(uniques))  # additive smoothing
+            else:
+                counts = bincount(self.data[:, vars.name])
+                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(vars.values))  # additive smoothing
+        else:
+            if self.sparse:
+                uniques = [self.get_counts_sparse(x, with_counts=False) for x in vars]
+                M = np.column_stack([x.toarray().flatten() for x in vars])  # Get dense arrays and stack in a matrix
+            else:
+                uniques = [np.unique(x[~np.isnan(x)]) for x in vars]  # Unique values for each attribute column, no NaNs.
+                M = np.column_stack(vars)  # Stack the columns in a matrix.
             k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
