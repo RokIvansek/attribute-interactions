@@ -1,6 +1,6 @@
 import numpy as np
 import Orange
-from orangecontrib.interactions.interactions import *
+from orangecontrib.interactions.interactions import Interactions
 from orangecontrib.interactions.utils import *
 import timeit
 
@@ -20,8 +20,10 @@ if __name__ == '__main__':
 
     print("Testing for", s, "samples,", a, "attributes:")
 
-    wrapped = wrapper(inter.interaction_matrix)
-    print("Time int matrix:", timeit.timeit(wrapped, number=3) / 3)
+    # wrapped = wrapper(inter.interaction_matrix)
+    # print("Time int matrix:", timeit.timeit(wrapped, number=3) / 3)
 
     # Testing for 100 samples, 10 attributes: (with np.unique)
     # Time int matrix: 2.495855596667146
+
+    #TESTING GET PROBS
