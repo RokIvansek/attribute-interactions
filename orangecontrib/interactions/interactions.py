@@ -35,7 +35,7 @@ class Interaction:
         self.rel_ig_ab = self.abs_ig_ab/class_ent
         self.rel_total_ig_ab = self.abs_total_ig_ab/class_ent
 
-    def __str__(self):
+    def __repr__(self):
         msg = "Interaction beetween attributes " + str(self.a_name) + " and " + str(self.b_name) + ":\n"
         msg += "Relative info gain for attribute " + str(self.a_name) + ": " + str(self.rel_ig_a) + "\n"
         msg += "Relative info gain for attribute " + str(self.b_name) + ": " + str(self.rel_ig_b) + "\n"

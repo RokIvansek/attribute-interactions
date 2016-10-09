@@ -88,7 +88,7 @@ def main():
     app = QApplication([])
     ow = OWInteractionGraph()
 
-    d = Orange.data.Table('zoo')
+    d = Orange.data.Table('lenses')
     inter = Interactions(d)
     inter.interaction_matrix()
     int_object = inter.get_top_att(5)
