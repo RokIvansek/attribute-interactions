@@ -1,6 +1,6 @@
 import numpy as np
 import Orange
-from orangecontrib.interactions.interactions import *
+from orangecontrib.interactions.interactions import Interactions
 from orangecontrib.interactions.utils import *
 import timeit
 
