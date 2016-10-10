@@ -1,6 +1,6 @@
 import numpy as np
 import Orange
-from orangecontrib.interactions.interactions import Interactions
+from orangecontrib.interactions.interactions import *
 from orangecontrib.interactions.utils import *
 import timeit
 
@@ -10,12 +10,12 @@ if __name__ == '__main__':
 
     #SPEED TESTING:
 
-    s = 100 # number of samples
+    s = 100000 # number of samples
     a = 10 # number of attributes
     u_a = 10 # number of unique attribute values
     u_c = 3 # number of unique class values
 
-    d = load_artificial_data(s, a, u_a, u_c)
+    d = load_artificial_data(a, s, u_a, u_c, 1000, 100, sparse=1000)
     inter = Interactions(d)
 
     print("Testing for", s, "samples,", a, "attributes:")
@@ -28,8 +28,40 @@ if __name__ == '__main__':
 
     #TESTING GET PROBS
 
-    wrapped = wrapper(inter.get_probs, inter.data.X[:, 0])
-    print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    # 1 array
+    # print(inter.data.X[:, 0])
 
-    wrapped = wrapper(inter.get_probs_new, inter.data.X[:, 0])
-    print("Time get_probs_:", timeit.timeit(wrapped, number=3) / 3)
+    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0])
+    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    # print(inter.get_probs(inter.data.X[:, 0]))
+    # print(inter.h(inter.get_probs(inter.data.X[:, 0])))
+    #
+    # wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0])
+    # print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
+    # print(inter.get_probs_new(inter.data.domain.variables[0]))
+    # print(inter.h(inter.get_probs_new(inter.data.domain.variables[0])))
+
+    # 2 arrays
+
+    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.Y)
+    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    # print(inter.get_probs(inter.data.X[:, 0], inter.data.Y))
+    # print(inter.h(inter.get_probs(inter.data.X[:, 0], inter.data.Y)))
+    #
+    # wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0], inter.data.domain.variables[-1])
+    # print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
+    # print(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1]))
+    # print(inter.h(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1])))
+
+    # 3 arrays
+
+    wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)
+    print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
+    print(inter.h(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)))
+
+    wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0], inter.data.domain.variables[1],
+                      inter.data.domain.variables[-1])
+    print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
+    print(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1]))
+    print(inter.h(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[1],
+                                      inter.data.domain.variables[-1])))

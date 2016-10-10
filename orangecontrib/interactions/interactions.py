@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse as sp
 import Orange
 from Orange.statistics.util import bincount, contingency
-from orangecontrib.interactions.utils import powerset, load_artificial_data
+from orangecontrib.interactions.utils import powerset
 
 
 class Interaction:
@@ -157,28 +157,20 @@ class Interactions:
         """
         no_att = len(vars)
         if no_att == 1:
-            if self.sparse:
-                counts, uniques = self.get_counts_sparse(vars[0])
-                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(uniques))  # additive smoothing
-            else:
-                counts = bincount(self.data[:, vars.name])
-                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(vars.values))  # additive smoothing
+                counts = bincount(self.data.get_column_view(vars[0])[0])[0]
+                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(vars[0].values))  # additive smoothing
+        elif no_att == 2:
+            k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
+            counts = contingency(self.data.get_column_view(vars[0])[0], self.data.get_column_view(vars[1])[0])[0]
+            probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * k)  # Get probabilities (use additive smoothing).
         else:
-            if self.sparse:
-                uniques = [self.get_counts_sparse(x, with_counts=False) for x in vars]
-                M = np.column_stack([x.toarray().flatten() for x in vars])  # Get dense arrays and stack in a matrix
-            else:
-                uniques = [np.unique(x[~np.isnan(x)]) for x in vars]  # Unique values for each attribute column, no NaNs.
-                M = np.column_stack(vars)  # Stack the columns in a matrix.
-            k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
+            M = np.column_stack([self.data.get_column_view(var)[0] for var in vars])  # Stack the columns in a matrix.
+            k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
             M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
             m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
             M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
-            # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
             _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
-            # The above line is the bottleneck. It accounts for 60% of time consumption of method get_probs
             counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
-            # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
             probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
         return probs
 
@@ -198,7 +190,7 @@ class Interactions:
 
         """
 
-        return np.sum(-p*np.log2(p) if p > 0 else 0 for p in probs)
+        return np.sum(-p*np.log2(p) if p > 0 else 0 for p in np.nditer(probs))
 
     def i(self, *X):
         """
