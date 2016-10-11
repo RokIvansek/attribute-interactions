@@ -10,15 +10,26 @@ if __name__ == '__main__':
 
     #SPEED TESTING:
 
-    s = 100000 # number of samples
+    s = 10 # number of samples
     a = 10 # number of attributes
-    u_a = 10 # number of unique attribute values
-    u_c = 3 # number of unique class values
+    u_a = 3 # number of unique attribute values
+    u_c = 2 # number of unique class values
+    nans_att = 20
+    nans_class = 3
+    sparse = False
 
-    d = load_artificial_data(a, s, u_a, u_c, 1000, 100, sparse=1000)
+    d = load_artificial_data(a, s, u_a, u_c, nans_att, nans_class, sparse)
+    print(d)
     inter = Interactions(d)
 
-    print("Testing for", s, "samples,", a, "attributes:")
+    print("Testing for:\n",
+          s, "samples,\n",
+          a, "attributes, \n",
+          u_a, "unique_attribute_values, \n",
+          u_c, "unique_class_values, \n",
+          nans_att, "nans in attributes, \n",
+          nans_class, "nans in class, \n",
+          "sparse:", sparse, ":")
 
     # wrapped = wrapper(inter.interaction_matrix)
     # print("Time int matrix:", timeit.timeit(wrapped, number=3) / 3)
@@ -26,42 +37,12 @@ if __name__ == '__main__':
     # Testing for 100 samples, 10 attributes: (with np.unique)
     # Time int matrix: 2.495855596667146
 
-    #TESTING GET PROBS
+    # Testing for 100 samples, 10 attributes: (with orange contingency and bincount)
+    # Time int matrix: 0.08377752533321352
 
-    # 1 array
-    # print(inter.data.X[:, 0])
+    #GET PROBS
 
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0])
-    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
-    # print(inter.get_probs(inter.data.X[:, 0]))
-    # print(inter.h(inter.get_probs(inter.data.X[:, 0])))
-    #
-    # wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0])
-    # print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
-    # print(inter.get_probs_new(inter.data.domain.variables[0]))
-    # print(inter.h(inter.get_probs_new(inter.data.domain.variables[0])))
+    # print(np.sum(inter.get_probs(inter.data.domain.variables[0], inter.data.domain.variables[1], inter.data.domain.variables[-1])))
+    print(np.sum(inter.get_probs(inter.data.domain.variables[0], inter.data.domain.variables[-1])))
+    # print(np.sum(inter.get_probs(inter.data.domain.variables[0])))
 
-    # 2 arrays
-
-    # wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.Y)
-    # print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
-    # print(inter.get_probs(inter.data.X[:, 0], inter.data.Y))
-    # print(inter.h(inter.get_probs(inter.data.X[:, 0], inter.data.Y)))
-    #
-    # wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0], inter.data.domain.variables[-1])
-    # print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
-    # print(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1]))
-    # print(inter.h(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1])))
-
-    # 3 arrays
-
-    wrapped = wrapper(inter.get_probs, inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)
-    print("Time get_probs:", timeit.timeit(wrapped, number=3) / 3)
-    print(inter.h(inter.get_probs(inter.data.X[:, 0], inter.data.X[:, 1], inter.data.Y)))
-
-    wrapped = wrapper(inter.get_probs_new, inter.data.domain.variables[0], inter.data.domain.variables[1],
-                      inter.data.domain.variables[-1])
-    print("Time get_probs_new:", timeit.timeit(wrapped, number=3) / 3)
-    print(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[-1]))
-    print(inter.h(inter.get_probs_new(inter.data.domain.variables[0], inter.data.domain.variables[1],
-                                      inter.data.domain.variables[-1])))

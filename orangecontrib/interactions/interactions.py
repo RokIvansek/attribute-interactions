@@ -24,9 +24,9 @@ class Interaction:
     class_ent :
         Entropy of the class attribute.
     """
-    def __init__(self, a_name, b_name, abs_ig_a, abs_ig_b, abs_ig_ab, class_ent):
-        self.a_name = a_name
-        self.b_name = b_name
+    def __init__(self, var_a, var_b, abs_ig_a, abs_ig_b, abs_ig_ab, class_ent):
+        self.var_a = var_a
+        self.var_b = var_b
         self.abs_ig_a = abs_ig_a
         self.abs_ig_b = abs_ig_b
         self.abs_ig_ab = abs_ig_ab
@@ -37,9 +37,9 @@ class Interaction:
         self.rel_total_ig_ab = self.abs_total_ig_ab/class_ent
 
     def __repr__(self):
-        msg = "Interaction beetween attributes " + str(self.a_name) + " and " + str(self.b_name) + ":\n"
-        msg += "Relative info gain for attribute " + str(self.a_name) + ": " + str(self.rel_ig_a) + "\n"
-        msg += "Relative info gain for attribute " + str(self.b_name) + ": " + str(self.rel_ig_b) + "\n"
+        msg = "Interaction beetween attributes " + str(self.var_a.name) + " and " + str(self.var_b.name) + ":\n"
+        msg += "Relative info gain for attribute " + str(self.var_a.name) + ": " + str(self.rel_ig_a) + "\n"
+        msg += "Relative info gain for attribute " + str(self.var_b.name) + ": " + str(self.rel_ig_b) + "\n"
         msg += "Relative info gain for both attributes together: " + str(self.rel_ig_ab) + "\n"
         msg += "Total relative info gain from attributes and their combination: " + str(self.rel_total_ig_ab)
         return msg
@@ -77,70 +77,13 @@ class Interactions:
         if self.sparse:  # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
-        self.info_gains = {self.data.domain.attributes[k].name: self.i(self.data.X[:, k], self.data.Y)
-                           for k in range(self.n)}
-        self.class_entropy = self.h(self.get_probs(self.data.Y))  # You will need this for relative information gain
+        # self.info_gains = {self.data.domain.attributes[k].name:
+        #                    self.i(self.data.domain.variables[k], self.data.domain.variables[-1])
+        #                    for k in range(self.n)}
+        # self.class_entropy = self.h(self.get_probs(self.data.domain.variables[-1]))  # You will need this for relative information gain
         self.int_M_called = False
 
-    def get_counts_sparse(self, x, with_counts=True):
-        """Handles NaNs and counts the values in a 1D sparse array."""
-        x_ = x.data[~np.isnan(x.data)]  # Getting just the non zero entries, excluding NaNs.
-        no_non_zeros = len(x_)
-        no_nans = len(x.data) - no_non_zeros
-        no_zeros = x.shape[0] - no_nans - no_non_zeros
-        uniques, counts = np.unique(x_, return_counts=True)  # count
-        if no_zeros != 0:
-            counts = np.concatenate((counts, [no_zeros]))  # adding the frequency of zeros
-            uniques = np.concatenate((uniques, [0]))  # adding zero to uniques
-        if with_counts:
-            return counts, uniques
-        else:
-            return uniques
-
-    def get_probs(self, *X):
-        """
-        Counts the frequencies of samples of given variables ``*vars`` and
-        calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
-
-        Parameters
-        ----------
-        *X
-            A sequence of Orange discrete variables.
-
-        Returns
-        -------
-        numpy.ndarray
-            A 1D numpy array of probabilities.
-        """
-        no_att = len(X)
-        if no_att == 1:
-            if self.sparse:
-                counts, uniques = self.get_counts_sparse(X[0])
-                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(uniques))  # additive smoothing
-            else:
-                x = X[0][~np.isnan(X[0])]  # remove NaNs
-                uniques, counts = np.unique(x, return_counts=True)  # count
-                probs = (counts + self.alpha) / (len(x) + self.alpha * len(uniques))  # additive smoothing
-        else:
-            if self.sparse:
-                uniques = [self.get_counts_sparse(x, with_counts=False) for x in X]
-                M = np.column_stack([x.toarray().flatten() for x in X])  # Get dense arrays and stack in a matrix
-            else:
-                uniques = [np.unique(x[~np.isnan(x)]) for x in X]  # Unique values for each attribute column, no NaNs.
-                M = np.column_stack(X)  # Stack the columns in a matrix.
-            k = np.prod([len(x) for x in uniques])  # Get the number of all possible combinations.
-            M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
-            m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
-            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
-            # M_cont = M.view(M.dtype.descr * no_att)  # Using structured arrays is memory efficient, but a bit slower.
-            _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
-            # The above line is the bottleneck. It accounts for 60% of time consumption of method get_probs
-            counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
-            # print(uniques.view(M.dtype).reshape(-1, no_att))  # Print uniques in a readable form.
-            probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
-        return probs
-
-    def get_probs_new(self, *vars):
+    def get_probs(self, *vars):
         """
         Counts the frequencies of samples of given variables ``*vars`` and
         calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
@@ -161,7 +104,8 @@ class Interactions:
                 probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(vars[0].values))  # additive smoothing
         elif no_att == 2:
             k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
-            counts = contingency(self.data.get_column_view(vars[0])[0], self.data.get_column_view(vars[1])[0])[0]
+            counts = contingency(self.data.get_column_view(vars[0])[0],
+                                 self.data.get_column_view(vars[1])[0])[0]
             probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * k)  # Get probabilities (use additive smoothing).
         else:
             M = np.column_stack([self.data.get_column_view(var)[0] for var in vars])  # Stack the columns in a matrix.
@@ -192,24 +136,24 @@ class Interactions:
 
         return np.sum(-p*np.log2(p) if p > 0 else 0 for p in np.nditer(probs))
 
-    def i(self, *X):
+    def i(self, *vars):
         """
         Computes information gain. 2 variables example: i(x,y) = h(x) + h(y) - h(x,y).
 
         Parameters
         ----------
         *X
-            A sequence of 1D arrays (columns/attributes), can be sparse.
+            A sequence of Orange variables.
 
         Returns
         -------
         numpy.float64
-            Information gain of attributes ``*X``.
+            Information gain of attributes ``*vars``.
 
         """
-        if len(X) == 1:
+        if len(vars) == 1:
             raise TypeError("Provide at least two arguments!")
-        return np.sum([((-1) ** (len(subset) - 1)) * self.h(self.get_probs(*subset)) for subset in powerset(X)])
+        return np.sum([((-1) ** (len(subset) - 1)) * self.h(self.get_probs(*subset)) for subset in powerset(vars)])
 
     def attribute_interactions(self, a, b, total_rel_ig_ab=None):
         """
@@ -230,17 +174,16 @@ class Interactions:
             Object of type Interaction.
 
         """
-
-        a_name = self.data.domain.attributes[a].name
-        b_name = self.data.domain.attributes[b].name
-        ig_a = self.info_gains[a_name]  # We already have this info from initialization.
-        ig_b = self.info_gains[b_name]
+        var_a = self.data.domain.variables[a]
+        var_b = self.data.domain.variables[b]
+        ig_a = self.info_gains[var_a.name]
+        ig_b = self.info_gains[var_b.name]
         if not total_rel_ig_ab:
-            ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b]))) + \
-                    self.h(self.get_probs(self.data.X[:, a], self.data.X[:, b], self.data.Y))
+            ig_ab = ig_a + ig_b - (self.class_entropy + self.h(self.get_probs(var_a, var_b))) + \
+                    self.h(self.get_probs(var_a, var_b, self.data.domain.variables[-1]))
         else:
             ig_ab = ig_a + ig_b - total_rel_ig_ab * self.class_entropy
-        inter = Interaction(a_name, b_name, ig_a, ig_b, ig_ab, self.class_entropy)
+        inter = Interaction(var_a, var_b, ig_a, ig_b, ig_ab, self.class_entropy)
         return inter
 
     def interaction_matrix(self):
