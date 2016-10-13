@@ -1,8 +1,12 @@
 import numpy as np
 import scipy.sparse as sp
+import bottleneck as bn
 import Orange
 from Orange.statistics.util import bincount, contingency
 from orangecontrib.interactions.utils import powerset
+from _functools import reduce
+from operator import add, mul
+
 
 
 class Interaction:
@@ -77,11 +81,21 @@ class Interactions:
         if self.sparse:  # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
-        # self.info_gains = {self.data.domain.attributes[k].name:
-        #                    self.i(self.data.domain.variables[k], self.data.domain.variables[-1])
-        #                    for k in range(self.n)}
-        # self.class_entropy = self.h(self.get_probs(self.data.domain.variables[-1]))  # You will need this for relative information gain
+        self.info_gains = {self.data.domain.attributes[k].name:
+                           self.i(self.data.domain.variables[k], self.data.domain.variables[-1])
+                           for k in range(self.n)}
+        self.class_entropy = self.h(self.get_probs(self.data.domain.variables[-1]))  # You will need this for relative information gain
         self.int_M_called = False
+
+    def freq_counts(self, arrs, lens):
+        no_nans = reduce(np.logical_and, [~np.isnan(a) if bn.anynan(a) else np.ones(self.m).astype(bool) for a in arrs])
+        combined = reduce(add, [arrs[i][no_nans]*reduce(mul, lens[:i]) for i in range(1, len(arrs))], arrs[0][no_nans])
+        return np.bincount(combined.astype(np.int32, copy=False), minlength=reduce(mul, lens)).astype(float)
+
+    def get_probs_new(self, *vars):
+        freqs = self.freq_counts([self.data.get_column_view(v)[0] for v in vars], [len(v.values) for v in vars])
+        k = np.prod([len(v.values) for v in vars])
+        return (freqs + self.alpha) / (np.sum(freqs) + self.alpha*k)
 
     def get_probs(self, *vars):
         """
@@ -105,7 +119,9 @@ class Interactions:
         elif no_att == 2:
             k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
             counts = contingency(self.data.get_column_view(vars[0])[0],
-                                 self.data.get_column_view(vars[1])[0])[0]
+                                 self.data.get_column_view(vars[1])[0],
+                                 len(vars[0].values)-1,
+                                 len(vars[1].values)-1)[0]
             probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * k)  # Get probabilities (use additive smoothing).
         else:
             M = np.column_stack([self.data.get_column_view(var)[0] for var in vars])  # Stack the columns in a matrix.
