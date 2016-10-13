@@ -2,7 +2,6 @@ import numpy as np
 import scipy.sparse as sp
 import bottleneck as bn
 import Orange
-from Orange.statistics.util import bincount, contingency
 from orangecontrib.interactions.utils import powerset
 from _functools import reduce
 from operator import add, mul
@@ -78,6 +77,7 @@ class Interactions:
         discretizer.method = disc_method  # TODO: Is this OK? Method as input argument?
         self.data = discretizer(self.data)
         self.sparse = sp.issparse(self.data.X)  # Check for sparsity
+        # TODO: Check if this conversion to csc is still necessary in the new get_probs
         if self.sparse:  # If it is a sparse matrix, make it csc, because it enables fast column slicing operations
             self.data.X = sp.csc_matrix(self.data.X)
             self.data.Y = sp.csc_matrix(self.data.Y.reshape((self.m,1)))  # Seems like the easiest way to convert Y too
@@ -88,23 +88,33 @@ class Interactions:
         self.int_M_called = False
 
     def freq_counts(self, arrs, lens):
+        """
+        Calculates frequencies of samples.
+
+        Parameters
+        ----------
+        arrs
+            A sequence of arrays.
+        lens
+            A sequence of number of distinct values in arrays.
+        Returns
+        -------
+        numpy.ndarray
+            A 1D numpy array of frequencies.
+
+        """
         no_nans = reduce(np.logical_and, [~np.isnan(a) if bn.anynan(a) else np.ones(self.m).astype(bool) for a in arrs])
         combined = reduce(add, [arrs[i][no_nans]*reduce(mul, lens[:i]) for i in range(1, len(arrs))], arrs[0][no_nans])
         return np.bincount(combined.astype(np.int32, copy=False), minlength=reduce(mul, lens)).astype(float)
 
-    def get_probs_new(self, *vars):
-        freqs = self.freq_counts([self.data.get_column_view(v)[0] for v in vars], [len(v.values) for v in vars])
-        k = np.prod([len(v.values) for v in vars])
-        return (freqs + self.alpha) / (np.sum(freqs) + self.alpha*k)
-
     def get_probs(self, *vars):
         """
         Counts the frequencies of samples of given variables ``*vars`` and
-        calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.
+        calculates probabilities with additive smoothing.
 
         Parameters
         ----------
-        *X
+        *vars
             A sequence of Orange discrete variables.
 
         Returns
@@ -112,27 +122,9 @@ class Interactions:
         numpy.ndarray
             A 1D numpy array of probabilities.
         """
-        no_att = len(vars)
-        if no_att == 1:
-                counts = bincount(self.data.get_column_view(vars[0])[0])[0]
-                probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * len(vars[0].values))  # additive smoothing
-        elif no_att == 2:
-            k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
-            counts = contingency(self.data.get_column_view(vars[0])[0],
-                                 self.data.get_column_view(vars[1])[0],
-                                 len(vars[0].values)-1,
-                                 len(vars[1].values)-1)[0]
-            probs = (counts + self.alpha) / (np.sum(counts) + self.alpha * k)  # Get probabilities (use additive smoothing).
-        else:
-            M = np.column_stack([self.data.get_column_view(var)[0] for var in vars])  # Stack the columns in a matrix.
-            k = np.prod([len(var.values) for var in vars])  # Get the number of all possible combinations.
-            M = M[~np.isnan(M).any(axis=1)]  # Remove samples that contain NaNs.
-            m = M.shape[0]  # Number of samples remaining after NaNs have been removed.
-            M_cont = np.ascontiguousarray(M).view(np.dtype((np.void, M.dtype.itemsize * no_att)))
-            _, counts = np.unique(M_cont, return_counts=True)  # Count the occurrences of joined attribute values.
-            counts = np.concatenate((counts, np.zeros(k - len(counts))))  # Add the zero frequencies
-            probs = (counts + self.alpha) / (m + self.alpha * k)  # Get probabilities (use additive smoothing).
-        return probs
+        freqs = self.freq_counts([self.data.get_column_view(v)[0] for v in vars], [len(v.values) for v in vars])
+        k = np.prod([len(v.values) for v in vars])
+        return (freqs + self.alpha) / (np.sum(freqs) + self.alpha*k)
 
     def h(self, probs):
         """
