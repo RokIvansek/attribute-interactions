@@ -3,7 +3,12 @@ Orange3 Interactions Add-on
 
 [![build: passing](https://img.shields.io/travis/RokIvansek/attribute-interactions.svg)](https://travis-ci.org/RokIvansek/attribute-interactions)
 
-This is be an Interactions add-on for [Orange3](http://orange.biolab.si). For now it extends Orange only in the scripting part.
+This is an Interactions add-on for [Orange3](http://orange.biolab.si). For now it extends Orange only in the scripting part, but we have plans for an Orange widget(s) as well.
+
+Attribute Interactions
+----------------------
+
+The library uses the concept of Shannon entropy to look at how the attributes in a dataset interact with each other. The most interesting pairs of attributes are the ones that provide additional information about the class variable when considered together (as a cartesian product), i.e. the additional info, that is not present when attributes are regarded independently. You can read more about attribute interactions [here](http://www.stat.columbia.edu/~jakulin/Int/).
 
 Installation
 ------------

@@ -54,7 +54,7 @@ ENTRY_POINTS = {
         'html-index = orangecontrib.interactions.widgets:WIDGET_HELP_PATH',)
 }
 
-NAMESPACE_PACKAGES = ["orangecontrib"]
+NAMESPACE_PACKAGES = ["orangecontrib", "orangecontrib.interactions"]
 
 TEST_SUITE = "orangecontrib.interactions.tests.suite"
 

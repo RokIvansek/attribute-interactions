@@ -57,8 +57,8 @@ def load_mushrooms_data():
     shrooms_data = shrooms_data.astype(np.float32)
     Y_shrooms = shrooms_data[:, 0]
     X_shrooms = shrooms_data[:, 1:]
-    domain = Orange.data.Domain([Orange.data.DiscreteVariable(names[i-1]) for i in range(1,X_shrooms.shape[1]+1)],
-                                Orange.data.DiscreteVariable("edible"))
+    domain = Orange.data.Domain([Orange.data.DiscreteVariable(names[i-1], np.unique(X_shrooms[:, i-1])) for i in range(1,X_shrooms.shape[1]+1)],
+                                Orange.data.DiscreteVariable("edible", np.unique(Y_shrooms)))
     data = Orange.data.Table(domain, X_shrooms, Y_shrooms)  # Make an Orange.Table object
     return data
 

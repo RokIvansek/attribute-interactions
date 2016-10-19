@@ -1,4 +1,6 @@
 from orangecontrib.interactions.interactions import Interaction, Interactions
+from orangecontrib.interactions.utils import load_mushrooms_data
+from orangecontrib.bio.geo import GDS
 from Orange.widgets import gui, settings, widget, highcharts
 import Orange
 
@@ -52,28 +54,28 @@ class OWInteractionGraph(widget.OWWidget):
         interaction_gains = []
         interaction_colors = []
         for o in self.data:
-            categories_left.append(o.a_name)
-            categories_right.append(o.b_name)
+            categories_left.append(o.var_a.name)
+            categories_right.append(o.var_b.name)
             ab = o.rel_ig_ab
             if ab < 0:
                 a = o.rel_ig_a
                 b = o.rel_ig_b
                 ab = -ab
-                interaction_colors.append('green')
+                interaction_colors.append('#90ee7e') # #90ee7e #55BF3B
             else:
                 a = o.rel_ig_a - ab
                 b = o.rel_ig_b - ab
-                interaction_colors.append('red')
+                interaction_colors.append('red') # #DF5353
             info_gains_left.append(b)
             interaction_gains.append(ab)
             info_gains_right.append(a)
         options = dict(series=[], xAxis=[])
-        options['series'].append(dict(data=info_gains_left, name='Isolated attribute info gain', color='blue'))
+        options['series'].append(dict(data=info_gains_left, name='Isolated attribute info gain', color='#7cb5ec'))
         options['series'].append(dict(data=interaction_gains,
                                       name='Interaction info gain',
                                       colorByPoint=True,
                                       colors = interaction_colors))
-        options['series'].append(dict(data=info_gains_right, name='Isolated attribute info gain', color='blue'))
+        options['series'].append(dict(data=info_gains_right, name='Isolated attribute info gain', color='#7cb5ec')) ##7798BF
         options['xAxis'].append(dict(categories=categories_left,
                                      labels = dict(step=1)))
         options['xAxis'].append(dict(categories=categories_right,
@@ -88,7 +90,10 @@ def main():
     app = QApplication([])
     ow = OWInteractionGraph()
 
-    d = Orange.data.Table('lenses')
+    # d = Orange.data.Table('lenses')
+    d = load_mushrooms_data()
+    # gds = GDS("GDS1676")
+    # d = gds.getdata()
     inter = Interactions(d)
     inter.interaction_matrix()
     int_object = inter.get_top_att(5)

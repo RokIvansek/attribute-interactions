@@ -204,8 +204,9 @@ class Interactions:
         for k in range(self.n):
             for j in range(k+1):
                 o = self.attribute_interactions(k, j)
-                int_M[k, j] = o.rel_total_ig_ab  # Store total information gain.
-                int_M[j, k] = o.rel_total_ig_ab
+                int_M[k, j] = o.rel_total_ig_ab  # Store total information gain
+                int_M[j, k] = o.rel_total_ig_ab  # TODO: Maybe storing interactions too is not a bad idea
+                # TODO: We can than easily sort either by total gain or by positive interaction
         for k in range(self.n):
             int_M[k, k] = self.info_gains[self.data.domain.attributes[k].name]
         self.int_matrix = Orange.misc.distmatrix.DistMatrix(int_M)
@@ -230,6 +231,7 @@ class Interactions:
         if not self.int_M_called:
             raise IndexError("Call interaction_matrix first!")
         flat_indices = np.argpartition(np.tril(-self.int_matrix, -1).ravel(), n - 1)[:n]
+        # TODO: Consider using the partial sort from the bottleneck module for faster sorting
         row_indices, col_indices = np.unravel_index(flat_indices, self.int_matrix.shape)
         min_elements_order = np.argsort(-self.int_matrix[row_indices, col_indices])
         row_indices, col_indices = row_indices[min_elements_order], col_indices[min_elements_order]
