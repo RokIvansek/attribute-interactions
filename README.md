@@ -29,7 +29,7 @@ Documentation / widget help can be built by running
     make html htmlhelp
 
 from the doc directory. You need [sphinx](http://www.sphinx-doc.org/en/stable/index.html) to generate the docs. Once generated you can
-find them in the build directory.
+find them in the build directory. Alternatively, you can read them [here](doc/build/html/index.html) on github.
 
 To run unittest, run
 

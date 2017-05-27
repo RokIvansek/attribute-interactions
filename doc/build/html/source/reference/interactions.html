@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>interactions package &#8212; Orange3 Interactions Add-on 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="Orange3 Interactions Add-on 0.1 documentation" href="../../index.html" />
+    <link rel="next" title="Hello World" href="../../widgets/mywidget.html" />
+    <link rel="prev" title="Interactions add-on" href="../../index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="interactions-package">
+<h1>interactions package<a class="headerlink" href="#interactions-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-interactions">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-interactions" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="interactions.Interaction">
+<em class="property">class </em><code class="descclassname">interactions.</code><code class="descname">Interaction</code><span class="sig-paren">(</span><em>a_name</em>, <em>b_name</em>, <em>abs_ig_a</em>, <em>abs_ig_b</em>, <em>abs_ig_ab</em>, <em>class_ent</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interaction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A class that stores all the interaction values between two attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>a_name</strong> (<em>str</em>) &#8211; Name of the attribute.</li>
+<li><strong>b_name</strong> (<em>str</em>) &#8211; Name of the attribute.</li>
+<li><strong>abs_ig_a</strong> &#8211; Absolute info gain of attribute a.</li>
+<li><strong>abs_ig_b</strong> &#8211; Absolute info gain of attribute b.</li>
+<li><strong>abs_ig_ab</strong> &#8211; Absolute info gain of attributes a and b combined.</li>
+<li><strong>class_ent</strong> &#8211; Entropy of the class attribute.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="interactions.Interactions">
+<em class="property">class </em><code class="descclassname">interactions.</code><code class="descname">Interactions</code><span class="sig-paren">(</span><em>data</em>, <em>disc_method=&lt;Orange.preprocess.discretize.EqualFreq object&gt;</em>, <em>alpha=0.01</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A class for computing attribute interactions using the concept of Shannon entropy from information theory.
+It works on discrete datasets - continuous attributes/classes are discretized using equal frequencies
+discretization.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> (<em>Orange.data.Table</em>) &#8211; Orange data table.</li>
+<li><strong>disc_method</strong> (<em>Orange.preprocess.Discretization</em>) &#8211; A method for discretizing continuous attributes.</li>
+<li><strong>alpha</strong> (<em>float</em>) &#8211; Additive (Laplace) smoothing parameter (default: 0.01).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="interactions.Interactions.attribute_interactions">
+<code class="descname">attribute_interactions</code><span class="sig-paren">(</span><em>a</em>, <em>b</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.attribute_interactions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the absolute total info gain for attributes a and b. Generates an Interaction object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>a</strong> &#8211; Attribute index.</li>
+<li><strong>b</strong> &#8211; Attribute index.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Object of type Interaction.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#interactions.Interaction" title="interactions.Interaction">Interaction</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.get_counts_sparse">
+<code class="descname">get_counts_sparse</code><span class="sig-paren">(</span><em>x</em>, <em>with_counts=True</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.get_counts_sparse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles NaNs and counts the values in a 1D sparse array.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.get_probs">
+<code class="descname">get_probs</code><span class="sig-paren">(</span><em>*X</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.get_probs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Counts the frequencies of samples (rows) in a given n dimensional array <code class="docutils literal"><span class="pre">*X</span></code> and
+calculates probabilities with additive smoothing. Handles NaNs. Handles sparse arrays.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>*X</strong> &#8211; A sequence of 1D arrays (columns/attributes), can be sparse.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A 1D numpy array of probabilities.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">numpy.ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.get_top_att">
+<code class="descname">get_top_att</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.get_top_att" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Interaction objects for n most informative pairs of attributes.
+For this to work, <code class="docutils literal"><span class="pre">interaction_matrix</span></code> must be called first.
+It uses a partial sort and then a full sort on the remaining n elements to get the indices of attributes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> &#8211; The number of attribute pairs we wish to get.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A list of Interaction objects.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.h">
+<code class="descname">h</code><span class="sig-paren">(</span><em>probs</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.h" title="Permalink to this definition">¶</a></dt>
+<dd><p>Entropy of a given distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>probs</strong> &#8211; A 1-dim array of probabilities.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Single/joined entropy value.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">numpy.float64</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.i">
+<code class="descname">i</code><span class="sig-paren">(</span><em>*X</em><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.i" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes information gain. 2 variables example: i(x,y) = h(x) + h(y) - h(x,y).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>*X</strong> &#8211; A sequence of 1D arrays (columns/attributes), can be sparse.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Information gain of attributes <code class="docutils literal"><span class="pre">*X</span></code>.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">numpy.float64</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="interactions.Interactions.interaction_matrix">
+<code class="descname">interaction_matrix</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#interactions.Interactions.interaction_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes a symetric matrix containing the relative total information gain for all possible pairs of attributes.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">interactions package</a><ul>
+<li><a class="reference internal" href="#module-interactions">Module contents</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../../index.html" title="previous chapter">Interactions add-on</a></li>
+      <li>Next: <a href="../../widgets/mywidget.html" title="next chapter">Hello World</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../_sources/source/reference/interactions.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2016, Biolab.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.6</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../../_sources/source/reference/interactions.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
